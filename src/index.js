@@ -177,17 +177,18 @@ const findAndReplace = async function (label) {
             closeOnClick: true,
             title: "Examples:",
             message:
+              "In Find field:<br>" +
               "- /.*/ matches all block text,<br>" +
-              " - /blocks?/i matches first occurence of 'block(s)',<br>" +
-              " - /[A-Z]\\w+/g, matches all words beginning with a capital letter.<br>" +
+              "- /blocks?/i matches first occurence of 'block(s)',<br>" +
+              "- /[A-Z]\\w+/g, matches all words beginning with a capital letter.<br>" +
               "<br>" +
-              "In replace blox:<br>" +
+              "In Replace field:<br>" +
               "- [$regex](((pUmK-1wqt))) make each machting string as an alias.<br>" +
               "- $RegEx leaves the machting string in its initial state.<br>" +
               "- $REGEX capitalizes all letters.<br>" +
               "- $regex set to lower case all letters.<br>" +
               "- $Regex capitalize first letter.<br>" +
-              "- Capture groups $1 and $2 can also be used. Ex: **$1** n°$2",
+              "- **$1** n°$2 bold first capture group and use the second as a number",
             position: "center",
             timeout: false,
             // iconText: 'star',
