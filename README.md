@@ -2,8 +2,7 @@
  
 Find & Replace any content, case sensitive or not, in current block selection, in current page, in current workspace (page + right sidebar + linked references) or, with great caution, in the whole graph, with Regex support. As a bonus, there is also a prepend/append in bulk feature.
 
-
-![image](https://user-images.githubusercontent.com/74436347/185460458-f327fae5-a5d7-45e0-bc2b-be04fbcac10d.png)
+![image](https://user-images.githubusercontent.com/74436347/185465608-d94b14f4-d899-417b-b7cc-ef4c59f5a952.png)
 
 ![image](https://user-images.githubusercontent.com/74436347/185460911-83b0c19d-3c1a-428b-ac8e-3d70949baebf.png)
 
@@ -49,7 +48,9 @@ There is 4 possible formating of the main variable (pay attention to upper and l
 Capture groups $1 and $2 can also be (multi-) used, assuming that the RegEx formula includes groups in parenthesis.
 
 You can click on `?` button in Find & Replace dialog box to see these examples: 
-![image](https://user-images.githubusercontent.com/74436347/185461971-43c40e16-3fed-4eb2-8e81-abe5bf1b5106.png)
+
+![image](https://user-images.githubusercontent.com/74436347/185465543-71646344-4d07-4ed4-90bf-02b17bcbf419.png)
+
 
 ---
 
