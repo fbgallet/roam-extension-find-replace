@@ -1,6 +1,6 @@
 # Find & Replace
  
-### Find & Replace any string of characters in current **block selection** (including block references and embeds in option), in current **page**, in current **workspace** (page + right sidebar + linked references) or, with great caution, in the whole graph. Case sensitive or insensitive, Regex support. As a bonus: **prepend/append in bulk** feature.
+Find & Replace any string of characters in current **block selection** (including block references and embeds in option), in current **page**, in current **workspace** (page + right sidebar + linked references) or, with great caution, in the whole graph. Case sensitive or insensitive, Regex support. As a bonus: **prepend/append in bulk** feature.
 
 ![image](https://user-images.githubusercontent.com/74436347/185465608-d94b14f4-d899-417b-b7cc-ef4c59f5a952.png)
 
