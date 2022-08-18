@@ -94,7 +94,7 @@ const findAndReplace = async function (label) {
     id: "question",
     title: label,
     message:
-      "(Support regular expressions. In replace blox, variable $RegEx stands for matching strings)<br>(Click (?) for examples.)",
+      "(Support regular expressions. In replace box, variable $RegEx stands for matching strings)<br>(Click (?) for examples.)",
     position: "center",
     inputs: [
       [
