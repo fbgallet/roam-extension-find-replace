@@ -1,6 +1,6 @@
 # Find & Replace
  
-Find & Replace any content, case sensitive or not, in current block selection, in current page, in current workspace (page + right sidebar + linked references) or, with great caution, in the whole graph, with Regex support. As a bonus, there is also a prepend/append in bulk feature.
+### Find & Replace any string of characters in current **block selection**, in current **page**, in current **workspace** (page + right sidebar + linked references) or, with great caution, in the whole graph. Case sensitive or insensitive, Regex support. As a bonus: **prepend/append in bulk** feature.
 
 ![image](https://user-images.githubusercontent.com/74436347/185465608-d94b14f4-d899-417b-b7cc-ef4c59f5a952.png)
 
@@ -11,7 +11,7 @@ Find & Replace any content, case sensitive or not, in current block selection, i
 
 - **Find & Replace: in block or Selection of blocks (frs)**:
 
-Replace, in current block or in the selected block (blue highlighted with mouse or Shift + Up or Down) a given string with another. The string to find can be case insensitive or be a Regex expression (see below for details). Only expanded blocks are processed. In option (see setting panel above), inline block references and embeded blocks can be also processed. Find & Replace be used to remove some content in bulk: enter the content to remove in the Find field, and let the Replace field blank. It can also be used to change the case of some text, see 'About Regex support' section below.
+Replace, in current block or in the selected block (blue highlighted with mouse or Shift + Up or Down) a given string with another. Only expanded (i.e. visible) blocks are processed. The string to find can be case insensitive or be a Regex expression (see 'About Regex support' section below for details). In option (see setting panel above), inline block references and embeded blocks can be also processed. Find & Replace be used to remove some content in bulk: enter the content to remove in the Find field, and let the Replace field blank. It can also be used to change the case of some text, thanks to Regex.
 
 - **Find & Replace: in Page zoom (frp)**:
 
@@ -27,11 +27,11 @@ With great caution ⚠️, you can search and replace some string in the whole g
 
 - **Find & Replace: Insert last changed blocks (references)**:
 
-After a Find & Replace operation, you can insert anywhere in your graph the list of changed block (as block references). It's also available in the 'Undo' popup after each operation: if you click on `Display changed blocks in sidebar`, the list of changed block will be inserted on the `[[roam/depot/find & replace]]` page, with date and timestamp. In option, you can display a table that compares the blocks before and after the Find & Replace operation, to identify unintended changes and to have a backup of critical changes.
+After a Find & Replace operation, you can insert anywhere in your graph the list of changed blocks (as block references). It's also available in the 'Undo' popup after each operation: if you click on `Display changed blocks in sidebar`, the list of changed blocks will be inserted on the `[[roam/depot/find & replace]]` page, with date and timestamp. In option, you can keep a copy of each changed block in its old state, and display a table that compares the blocks before and after the Find & Replace operation, to identify unintended changes and to have a backup of critical changes. Each old version is copied as a child block of the block reference of the new version - and is therefore easily accessible thought inline rerence counter.
 
 - **Find & Replace: Undo last operation**:
 
-Restores the blocks to their previous state. Works only for the last Find & Replace operation.
+Restore the blocks to their previous state. Works only for the last Find & Replace (or Prepend/Append) operation.
 
 - **Find & Replace: Redo last operation**:
 
