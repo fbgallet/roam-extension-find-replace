@@ -1,24 +1,31 @@
 import iziToast from "izitoast";
 import "../node_modules/izitoast/dist/css/iziToast.css";
 import getBlockUidsReferencingBlock from "roamjs-components/queries/getBlockUidsReferencingBlock";
+import getAllBlockUidsAndTexts from "roamjs-components/queries/getAllBlockUidsAndTexts";
 import {
   getBlocksUidReferencedInThisBlock,
   updateBlock,
   simulateClick,
   getBlockAttributes,
   getTreeByUid,
+  getPageUidByPageName,
 } from "./utils";
 
-const frsLabel = "Find & Replace: in block or selection of blocks (frs)";
-const frpLabel = "Find & Replace: in page zoom (frp)";
+const frsLabel = "Find & Replace: in block or Selection of blocks (frs)";
+const frpLabel = "Find & Replace: in Page zoom (frp)";
 const frwLabel =
-  "Find & Replace: in workspace (Page + Sidebar pages + inline/embeded/linked references) (frw)";
+  "Find & Replace: in Workspace (Page + Sidebar + references) (frw)";
+const frgLabel =
+  "Find & Replace: in whole Graph (Warning: dangerous operation!)";
 var lastOperation = "";
 var changesNb = 0;
 var includeRefs = true;
 var includeEmbeds = true;
 var includeLinkedRefs = true;
 var isPrepending = false;
+var wholeGraph = false;
+var displayBefore = false;
+var allowWhole = false;
 var selectedNodesUid = new Array(Node);
 var modifiedBlocksCopy = new Array();
 var promptParameters = new Array();
@@ -143,10 +150,13 @@ const findAndReplace = async function (label) {
               while (modifiedBlocksCopy.length > 0) {
                 modifiedBlocksCopy.pop();
               }
-              selectedNodesProcessing(
-                [toFindregexp, replacingStr],
-                replaceOpened
-              );
+
+              if (wholeGraph) wholeGraphProcessing(toFindregexp, replacingStr);
+              else
+                selectedNodesProcessing(
+                  [toFindregexp, replacingStr],
+                  replaceOpened
+                );
             }
           }
           instance.hide({ transitionOut: "fadeOut" }, toast, "button");
@@ -191,55 +201,66 @@ const findAndReplace = async function (label) {
   });
 };
 
-const replaceOpened = async (uid, blockContent, isOpened, find, replace) => {
+const replaceOpened = async (
+  uid,
+  blockContent,
+  isOpened,
+  find,
+  replace,
+  countOnly = false
+) => {
   let replacedBlock = "";
   let lastIndex = 0;
   let stringArray = [];
 
   if (find.test(blockContent)) {
-    find.lastIndex = 0;
-    if (find.global) {
-      var matchIterator = [...blockContent.matchAll(find)];
-      if (
-        replace.search(/\$regex/i) == -1 &&
-        replace.search(/\$1/) == -1 &&
-        replace.search(/\$2/) == -1
-      ) {
-        replacedBlock = blockContent.replace(find, replace);
-      } else {
-        for (const m of matchIterator) {
-          if (m.index != 0) {
-            stringArray.push(blockContent.substring(lastIndex, m.index));
+    if (!countOnly) {
+      find.lastIndex = 0;
+      if (find.global) {
+        var matchIterator = [...blockContent.matchAll(find)];
+        if (
+          replace.search(/\$regex/i) == -1 &&
+          replace.search(/\$1/) == -1 &&
+          replace.search(/\$2/) == -1
+        ) {
+          replacedBlock = blockContent.replace(find, replace);
+        } else {
+          for (const m of matchIterator) {
+            if (m.index != 0) {
+              stringArray.push(blockContent.substring(lastIndex, m.index));
+            }
+            stringArray.push(regexVarInsert(m, replace, blockContent));
+            lastIndex = m.index + m[0].length;
           }
-          stringArray.push(regexVarInsert(m, replace, blockContent));
-          lastIndex = m.index + m[0].length;
+          if (lastIndex < blockContent.length - 1) {
+            stringArray.push(blockContent.substring(lastIndex));
+          }
+          replacedBlock = stringArray.join("");
         }
-        if (lastIndex < blockContent.length - 1) {
-          stringArray.push(blockContent.substring(lastIndex));
-        }
-        replacedBlock = stringArray.join("");
-      }
-    } else {
-      const mFirst = blockContent.match(find);
-      if (
-        replace.search(/\$regex/i) == -1 &&
-        replace.search(/\$1/) == -1 &&
-        replace.search(/\$2/) == -1
-      ) {
-        replacedBlock = blockContent.replace(find, replace);
       } else {
-        if (mFirst.index != 0) {
-          replacedBlock = blockContent.substring(0, mFirst.index);
-        }
-        replacedBlock += regexVarInsert(mFirst, replace, blockContent);
-        lastIndex = mFirst.index + mFirst[0].length;
-        if (lastIndex < blockContent.length - 1) {
-          replacedBlock += blockContent.substring(lastIndex);
+        const mFirst = blockContent.match(find);
+        if (
+          replace.search(/\$regex/i) == -1 &&
+          replace.search(/\$1/) == -1 &&
+          replace.search(/\$2/) == -1
+        ) {
+          replacedBlock = blockContent.replace(find, replace);
+        } else {
+          if (mFirst.index != 0) {
+            replacedBlock = blockContent.substring(0, mFirst.index);
+          }
+          replacedBlock += regexVarInsert(mFirst, replace, blockContent);
+          lastIndex = mFirst.index + mFirst[0].length;
+          if (lastIndex < blockContent.length - 1) {
+            replacedBlock += blockContent.substring(lastIndex);
+          }
         }
       }
     }
-    modifiedBlocksCopy.push([uid, blockContent, isOpened]);
-    updateBlock(uid, replacedBlock, isOpened);
+    if (!countOnly) {
+      modifiedBlocksCopy.push([uid, blockContent, isOpened]);
+      updateBlock(uid, replacedBlock, isOpened);
+    }
     changesNb++;
   }
 };
@@ -417,6 +438,15 @@ const undoPopup = async function () {
           undoLastBulkOperation();
           instance.hide({ transitionOut: "fadeOut" }, toast, "button");
         },
+        false,
+      ],
+      [
+        "<button>Display changed blocks in sidebar</button>",
+        (instance, toast) => {
+          displayChangedBlocks();
+          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
+        },
+        false,
       ],
     ],
   });
@@ -520,6 +550,55 @@ const nodeProcessing = async (node, parameters, bulkFunction) => {
   await bulkFunction.apply(this, args);
 };
 
+const wholeGraphProcessing = (find, replace) => {
+  const all = getAllBlockUidsAndTexts();
+  all.forEach((node) => {
+    replaceOpened(node.uid, node.text, undefined, find, replace, true);
+  });
+  iziToast.warning({
+    timeout: 20000,
+    displayMode: "replace",
+    id: "warning",
+    zindex: 999,
+    title:
+      changesNb +
+      " matches have been found ! " +
+      "Replace a given string in the whole graph is a very dangerous operation and can have unintended consequences. " +
+      "Do you confirm that you want to replace '" +
+      find +
+      "' by '" +
+      replace +
+      "' ?",
+    position: "center",
+    overlay: true,
+    color: "red",
+    drag: false,
+    close: true,
+    buttons: [
+      [
+        "<button>Yes I know what I do</button>",
+        (instance, toast) => {
+          changesNb = 0;
+          all.forEach((node) => {
+            replaceOpened(node.uid, node.text, undefined, find, replace);
+          });
+          undoPopup();
+          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
+        },
+        false,
+      ],
+      [
+        "<button>No</button>",
+        (instance, toast) => {
+          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
+        },
+        true,
+      ],
+    ],
+  });
+  wholeGraph = false;
+};
+
 function getNodesFromTree(tree, first = false) {
   if (first) selectedNodesUid.length = 0;
   if (tree.string != undefined) {
@@ -573,6 +652,75 @@ function getNodesFromSidebarWindows() {
   });
 }
 
+function insertChangedBlocks(startUid) {
+  if (modifiedBlocksCopy.length == 0) return null;
+  let now = new Date();
+  let hh = now.getHours();
+  let mm = now.getMinutes();
+  let day = window.roamAlphaAPI.util.dateToPageTitle(now);
+  let parentUid = window.roamAlphaAPI.util.generateUID();
+  let shift = 0;
+  window.roamAlphaAPI.createBlock({
+    location: { "parent-uid": startUid, order: 0 },
+    block: {
+      uid: parentUid,
+      string:
+        "List of blocks changed by last Find & Replace operation on [[" +
+        day +
+        "]], " +
+        hh +
+        ":" +
+        mm,
+    },
+  });
+  if (displayBefore) {
+    let blockUid = window.roamAlphaAPI.util.generateUID();
+    window.roamAlphaAPI.createBlock({
+      location: { "parent-uid": parentUid, order: 0 },
+      block: { uid: blockUid, string: "{{table}}", open: false },
+    });
+    parentUid = blockUid;
+    let afterUid = window.roamAlphaAPI.util.generateUID();
+    window.roamAlphaAPI.createBlock({
+      location: { "parent-uid": blockUid, order: 0 },
+      block: { uid: afterUid, string: "After Replace" },
+    });
+    window.roamAlphaAPI.createBlock({
+      location: { "parent-uid": afterUid, order: 0 },
+      block: { string: "Before Replace" },
+    });
+    shift = shift + 1;
+  }
+  modifiedBlocksCopy.forEach((block, i) => {
+    let blockUid = window.roamAlphaAPI.util.generateUID();
+    window.roamAlphaAPI.createBlock({
+      location: { "parent-uid": parentUid, order: i + shift },
+      block: { uid: blockUid, string: "((" + block[0] + "))" },
+    });
+    if (displayBefore)
+      window.roamAlphaAPI.createBlock({
+        location: { "parent-uid": blockUid, order: 0 },
+        block: { string: block[1] },
+      });
+  });
+  return parentUid;
+}
+
+function displayChangedBlocks() {
+  let pageUid, parentUid;
+  pageUid = getPageUidByPageName("roam/depot/find & replace");
+  if (pageUid === undefined) {
+    pageUid = window.roamAlphaAPI.util.generateUID();
+    window.roamAlphaAPI.createPage({
+      page: { title: "roam/depot/find & replace", uid: pageUid },
+    });
+  }
+  parentUid = insertChangedBlocks(pageUid);
+  window.roamAlphaAPI.ui.rightSidebar.addWindow({
+    window: { type: "block", "block-uid": parentUid },
+  });
+}
+
 /******************************************************************************************      
 /*	Load / Unload
 /******************************************************************************************/
@@ -615,8 +763,50 @@ const panelConfig = {
         },
       },
     },
+    {
+      id: "beforeSetting",
+      name: "Display previous state",
+      description:
+        "Display blocks state before Replace in table of changed blocks:",
+      action: {
+        type: "switch",
+        onChange: (evt) => {
+          displayBefore = !displayBefore;
+        },
+      },
+    },
+    {
+      id: "wholeSetting",
+      name: "Allow 'Whole Graph' Find & Replace",
+      description:
+        "Display 'Whole Graph' Find & Replace command in command palette (Danger Zone)",
+      action: {
+        type: "switch",
+        onChange: (evt) => {
+          allowWhole = !allowWhole;
+          loadWholeGraphCommand(allowWhole);
+        },
+      },
+    },
   ],
 };
+
+function loadWholeGraphCommand(load = true) {
+  if (!load) {
+    window.roamAlphaAPI.ui.commandPalette.removeCommand({
+      label: frgLabel,
+    });
+    wholeGraph = false;
+    return;
+  }
+  window.roamAlphaAPI.ui.commandPalette.addCommand({
+    label: frgLabel,
+    callback: async () => {
+      wholeGraph = true;
+      await findAndReplace(frgLabel);
+    },
+  });
+}
 
 export default {
   onload: ({ extensionAPI }) => {
@@ -630,6 +820,12 @@ export default {
     if (extensionAPI.settings.get("linkedSetting") == null)
       extensionAPI.settings.set("linkedSetting", false);
     includeLinkedRefs = extensionAPI.settings.get("linkedSetting");
+    if (extensionAPI.settings.get("beforeSetting") == null)
+      extensionAPI.settings.set("beforeSetting", false);
+    displayBefore = extensionAPI.settings.get("beforeSetting");
+    if (extensionAPI.settings.get("wholeSetting") == null)
+      extensionAPI.settings.set("wholeSetting", false);
+    allowWhole = extensionAPI.settings.get("wholeSetting");
 
     window.roamAlphaAPI.ui.commandPalette.addCommand({
       label: frsLabel,
@@ -651,9 +847,6 @@ export default {
           await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
         getNodesFromPageZoomAndReferences(zoomUid);
         if (selectedNodesUid.length == 0) return;
-        setTimeout(() => {
-          simulateClick(document.body);
-        }, 50);
         findAndReplace(frpLabel);
       },
     });
@@ -667,31 +860,27 @@ export default {
           await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
         getNodesFromPageZoomAndReferences(zoomUid);
         getNodesFromSidebarWindows();
-        if (selectedNodesUid.length != 0) {
-          setTimeout(() => {
-            simulateClick(document.body);
-          }, 50);
-          findAndReplace(frwLabel);
-        }
+        if (selectedNodesUid.length != 0) findAndReplace(frwLabel);
         includeRefs = extensionAPI.settings.get("refsSetting");
         includeEmbeds = extensionAPI.settings.get("embedSetting");
         includeLinkedRefs = extensionAPI.settings.get("linkedSetting");
       },
     });
+    if (allowWhole) loadWholeGraphCommand();
     window.roamAlphaAPI.ui.commandPalette.addCommand({
-      label: "Find & Replace: undo last operation",
+      label: "Find & Replace: Undo last operation",
       callback: async () => {
         await undoLastBulkOperation();
       },
     });
     window.roamAlphaAPI.ui.commandPalette.addCommand({
-      label: "Find & Replace: redo last operation",
+      label: "Find & Replace: Redo last operation",
       callback: async () => {
         await redoPopup();
       },
     });
     window.roamAlphaAPI.ui.commandPalette.addCommand({
-      label: "Find & Replace: Prepend or append content to selected blocks",
+      label: "Prepend or append content to selected blocks",
       callback: async () => {
         isPrepending = true;
         getSelectedBlocksUid();
@@ -704,14 +893,32 @@ export default {
       },
     });
 
+    window.roamAlphaAPI.ui.commandPalette.addCommand({
+      label: "Find & Replace: Insert last changed blocks (references)",
+      callback: async () => {
+        let startUid = window.roamAlphaAPI.ui.getFocusedBlock()?.["block-uid"];
+        insertChangedBlocks(startUid);
+      },
+    });
+
     console.log("Find & replace loaded.");
   },
   onunload: () => {
     window.roamAlphaAPI.ui.commandPalette.addCommand({ label: frsLabel });
     window.roamAlphaAPI.ui.commandPalette.addCommand({ label: frpLabel });
     window.roamAlphaAPI.ui.commandPalette.addCommand({ label: frwLabel });
+    window.roamAlphaAPI.ui.commandPalette.addCommand({ label: frgLabel });
     window.roamAlphaAPI.ui.commandPalette.addCommand({
-      label: "Find & Replace: undo last operation",
+      label: "Find & Replace: Undo last operation",
+    });
+    window.roamAlphaAPI.ui.commandPalette.addCommand({
+      label: "Find & Replace: Redo last operation",
+    });
+    window.roamAlphaAPI.ui.commandPalette.addCommand({
+      label: "Find & Replace: Insert last changed blocks (references)",
+    });
+    window.roamAlphaAPI.ui.commandPalette.addCommand({
+      label: "Prepend or append content to selected blocks",
     });
     console.log("Find & replace unloaded.");
   },

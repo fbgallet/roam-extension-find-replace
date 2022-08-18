@@ -22,6 +22,13 @@ export function getBlocksUidReferencedInThisBlock(uid) {
   return window.roamAlphaAPI.q(q).flat();
 }
 
+export function getPageUidByPageName(page) {
+  let p = window.roamAlphaAPI.q(`[:find (pull ?e [:block/uid]) 
+							     :where [?e :node/title "${page}"]]`);
+  if (p.length == 0) return undefined;
+  else return p[0][0].uid;
+}
+
 export function updateBlock(uid, content, isOpen) {
   setTimeout(function () {
     window.roamAlphaAPI.updateBlock({
