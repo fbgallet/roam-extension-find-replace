@@ -2,6 +2,11 @@
  
 Find & Replace any content, case sensitive or not, in current block selection, in current page, in current workspace (page + right sidebar + linked references) or, with great caution, in the whole graph, with Regex support. As a bonus, there is also a prepend/append in bulk feature.
 
+![image](https://user-images.githubusercontent.com/74436347/185460458-f327fae5-a5d7-45e0-bc2b-be04fbcac10d.png)
+
+![image](https://user-images.githubusercontent.com/74436347/185460911-83b0c19d-3c1a-428b-ac8e-3d70949baebf.png)
+
+
 ## Commands available in command palette (Cmd-Ctrl + P)
 
 - **Find & Replace: in block or Selection of blocks (frs)**: replace, in current block or in the selected block (blue highlighted with mouse or Shift + Up or Down) a given string with another. The string to find can be case insensitive or be a Regex expression (see below for details). Only expanded blocks are processed. In option (see setting panel above), inline block references and embeded blocks can be also processed.
@@ -20,4 +25,23 @@ Find & Replace any content, case sensitive or not, in current block selection, i
 
 - **Prepend or append content to selected blocks**: insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (append) of selected blocks. Only expanded blocks are concerned.
 
-![image](https://user-images.githubusercontent.com/74436347/185459813-73ae93e2-8dae-4266-99fb-c86f3fb617d9.png)
+![image](https://user-images.githubusercontent.com/74436347/185461724-c32adb75-86cf-46c8-9335-f2c218d6d587.png)
+
+### About Regex support
+Regular expressions are supported both in find and replace fields. Regular Expressions are an advanced user feature, you must learn and experiment with their logic before using it (you can [learn and test your formulas here](https://regexr.com/)) !
+The most accessible feature is using the variable `$RegEx` as a placeholder for formating the replacement of matching strings:
+In Replace field, you can insert `$RegEx` in the replacing string. E.g., to bold all matching strings, enter: `**$RegEx**`
+There is 4 possible formating of the main variable (pay attention to upper and lower case letters):
+
+- `$RegEx` leaves the machting string in its initial case. (R and second E are upper case)
+- `$REGEX` capitalizes all letters.
+- `$regex` set to lower case all letters.
+- `$Regex` capitalize first letter.
+Capture groups $1 and $2 can also be (multi-) used, assuming that the RegEx formula includes groups in parenthesis.
+
+You can click on `?` button in Find & Replace dialog box to see these examples: 
+![image](https://user-images.githubusercontent.com/74436347/185461971-43c40e16-3fed-4eb2-8e81-abe5bf1b5106.png)
+
+---
+
+For any question or suggestion, DM me on Twitter: [@fbgallet](https://twitter.com/fbgallet) or Roam Slack.
