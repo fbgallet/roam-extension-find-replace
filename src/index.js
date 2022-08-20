@@ -905,20 +905,20 @@ export default {
     console.log("Find & replace loaded.");
   },
   onunload: () => {
-    window.roamAlphaAPI.ui.commandPalette.addCommand({ label: frsLabel });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({ label: frpLabel });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({ label: frwLabel });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({ label: frgLabel });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frsLabel });
+    window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frpLabel });
+    window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frwLabel });
+    window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frgLabel });
+    window.roamAlphaAPI.ui.commandPalette.removeCommand({
       label: "Find & Replace: Undo last operation",
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    window.roamAlphaAPI.ui.commandPalette.removeCommand({
       label: "Find & Replace: Redo last operation",
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    window.roamAlphaAPI.ui.commandPalette.removeCommand({
       label: "Find & Replace: Insert last changed blocks (references)",
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    window.roamAlphaAPI.ui.commandPalette.removeCommand({
       label: "Prepend or append content to selected blocks",
     });
     console.log("Find & replace unloaded.");
