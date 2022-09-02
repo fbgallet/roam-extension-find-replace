@@ -744,7 +744,7 @@ const panelConfig = {
       id: "embedSetting",
       name: "Include embeded blocks",
       description:
-        "Include blocks (and all their children) in Find & Replace operation:",
+        "Include embeded blocks (and all their children) in Find & Replace operation:",
       action: {
         type: "switch",
         onChange: (evt) => {
@@ -768,7 +768,7 @@ const panelConfig = {
       id: "beforeSetting",
       name: "Display previous state",
       description:
-        "Display blocks state before Replace in table of changed blocks:",
+        "Display changed blocks in a table where the new state is compared to the old state:",
       action: {
         type: "switch",
         onChange: (evt) => {
