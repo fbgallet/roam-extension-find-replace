@@ -363,8 +363,10 @@ const searchOnly = async function (
         function (instance, toast, button, e, inputs) {
           window.removeEventListener("keydown", onKeyArrows);
           switchToFindAndReplace = true;
+          if (matchingTotal != 0) label = displayMatchCountInTitle(toast);
+          else label = "Find & Replace in page or workspace";
           findAndReplace(
-            displayMatchCountInTitle(toast),
+            label,
             findInput,
             "",
             caseInsensitive,
@@ -3380,7 +3382,7 @@ export default {
         let selection = getSelection();
         if (selection === null) selection = "";
         await getNodes();
-        findAndReplace(frpLabel, selection);
+        findAndReplace("Find & Replace in page or workspace", selection);
       },
     });
     window.roamAlphaAPI.ui.commandPalette.addCommand({
@@ -3388,7 +3390,15 @@ export default {
       callback: async () => {
         workspace = true;
         await getWorkspaceNodes();
-        findAndReplace(frwLabel, "", "", "", "", "", true);
+        findAndReplace(
+          "Find & Replace in page or workspace",
+          "",
+          "",
+          "",
+          "",
+          "",
+          true
+        );
       },
     });
     window.roamAlphaAPI.ui.commandPalette.addCommand({
