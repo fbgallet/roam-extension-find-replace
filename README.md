@@ -1,7 +1,7 @@
 # Find & Replace, Search in page or graph, block <=> page converter and other bulk operations
  
 ### **Search in page** with instant highlighting of matches, **search in graph** with plain text or references extraction, **Find & Replace* any string of character by another, in selection, page or whole graph (with great caution), with complete regex support.
-###Bulk operations: convert block to page, or page to block, change format of selected blocks, prepend or append some string, extract highlighted strings...
+### Bulk operations: convert block to page, or page to block, change format of selected blocks, prepend or append some string, extract highlighted strings...
 
 ### [See changelog here for an overview of updates and new features](https://github.com/fbgallet/roam-extension-find-replace/blob/main/CHANGELOG.md) 🆕
 
