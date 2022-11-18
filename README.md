@@ -1,13 +1,15 @@
-# Find & Replace
+# Find & Replace, Search in page or graph, block <=> page converter and other bulk operations
  
-Find & Replace any string of characters in current **block selection** (including block references and embeds in option), in current **page**, in current **workspace** (page + right sidebar + linked references) or, with great caution, in the whole graph. Case sensitive or insensitive, Regex support. As a bonus: **prepend/append in bulk** feature.
+### **Search in page** with instant highlighting of matches, **search in graph** with plain text or references extraction, **Find & Replace* any string of character by another, in selection, page or whole graph (with great caution), with complete regex support.
+###Bulk operations: convert block to page, or page to block, change format of selected blocks, prepend or append some string, extract highlighted strings...
 
-![image](https://user-images.githubusercontent.com/74436347/185465608-d94b14f4-d899-417b-b7cc-ef4c59f5a952.png)
+### [See changelog here for an overview of updates and new features](https://github.com/fbgallet/roam-extension-find-replace/blob/main/CHANGELOG.md) 🆕
 
-![image](https://user-images.githubusercontent.com/74436347/185460911-83b0c19d-3c1a-428b-ac8e-3d70949baebf.png)
+### All commands are available via the command palette (Cmd-Ctrl + P). Enter "Find &..." and you will see all of them.
 
+## - 🆕 Search in page
 
-## Commands available in command palette (Cmd-Ctrl + P)
+![F R - Search in page](https://user-images.githubusercontent.com/74436347/202797471-b43fd997-a8f3-4896-af20-29948961a7ed.png)
 
 - **Find & Replace: in block or Selection of blocks (frs)**:
 
