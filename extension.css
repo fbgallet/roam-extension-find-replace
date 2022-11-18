@@ -1,0 +1,55 @@
+label.iziToast-inputs-child {
+  font-size: 90%;
+  font-weight: 100;
+  color: #ffffffb3 !important;
+  margin: 5px 5px 5px 3px;
+}
+
+.iziToast
+  > .iziToast-body
+  .iziToast-inputs
+  > input:not([type="checkbox"]):not([type="radio"]) {
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.iziToast-body code {
+  font-size: 12px;
+}
+
+input[type="checkbox"].iziToast-inputs-child {
+  margin: 0 10px 0 0;
+  padding-top: 5px;
+  min-width: 10px !important;
+  /* min-height: 10px !important; */
+  position: relative;
+  top: 4px !important;
+  filter: brightness(85%);
+}
+
+.iziToast-inputs-child > option {
+  background: #262626ff;
+  color: #ffffffb3;
+}
+
+.iziToast-message {
+  padding: 5px 0 5px 0 !important;
+}
+
+button.add-to-sidebar {
+  border: none;
+  background: revert;
+  color: revert;
+  text-align: center;
+  display: inline-block;
+  font-size: 90%;
+  margin: 2px;
+  border-radius: 4px;
+  filter: brightness(70%);
+  position: relative;
+  bottom: 2px;
+}
+
+button.add-to-sidebar:hover {
+  box-shadow: 0px 2px 4px -1px #000000, 0px 0px 4px #dfdfdf;
+}
