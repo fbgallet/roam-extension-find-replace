@@ -1,4 +1,4 @@
-## v.2 (November 18th, 2022) MAJOR update
+## v.2 (November 19th, 2022) MAJOR update
 ### New features:
 - Search on page, highlighting matches (replace Ctrl+f native feature of Chrome, but introduce this feature lacking in Desktop version of Roam).
 - Find & Replace: possibiliy to replace matches one by one or replace all
