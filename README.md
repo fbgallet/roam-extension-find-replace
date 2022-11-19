@@ -1,6 +1,6 @@
 # Find & Replace + Search box + block <=> page + bulk operations
  
-__Way more than a simple Find & Replace, here a the main features currently available:__
+__Way more than a simple Find & Replace, a versatile tool for search and bulk operations:__
 
 - __🆕 [Search in page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-page) with an instant highlighting__
 - __🆕 [Search in graph](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-the-whole-graph) with plain text or block references extraction__
