@@ -1,4 +1,4 @@
-# Find & Replace + Search box + block <=> page + bulk operations
+# Find & Replace, Search box, block <=> page conversion, bulk operations
 
 ![F R - demo gif](https://user-images.githubusercontent.com/74436347/202829680-fdec5c9c-e902-4e8a-945d-8a68669ed387.gif) 
  
@@ -40,7 +40,7 @@ Open the global search box with `Find & Replace: Whole graph search` in the comm
 In option, search results can be sorted by page or page last edit date (the most recent first).
 
 
-## - Find & Replace: or in the whole graph
+## - Find & Replace
 
 ### Find & Replace in selection, in page, in workspace
 Replace a given string with another at once or step by step, thanks to the 🆕 highlighting feature.
