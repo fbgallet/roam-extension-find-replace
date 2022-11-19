@@ -96,7 +96,11 @@ Since it's a quite dangerous operation, it will be safer to check the impacted b
 
 ![F R - format](https://user-images.githubusercontent.com/74436347/202827539-64b45e04-647c-44d1-9119-7aebe0f58042.png)
 
-Apply a given header format to a selection of blocks, or justify the content (right,left,center), or change the view of the childre (bullets,numbers,document), or change the case of the text (all as Upper case, all as lower case (current limitation: only text before block reference or page reference) or capitalize the first letter of the block).
+Apply to a selection of blocks (and only the visible ones), you can bulk change:
+  - the header level (1, 2 or 3)
+  - the alignment of the text (right, left, center, justify), 
+  - the view of the children (bullets, numbers, document),
+  - the case of the text (all as Upper case, all as lower case, capitalize the first letter of the block or capitalize the first letter of each word - excluding page references, tags, attributs and block references, of course).
 
 
 ## `Prepend or append content to selected blocks` command:
