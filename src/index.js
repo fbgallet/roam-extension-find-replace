@@ -215,7 +215,7 @@ const searchOnly = async function (
     position: position,
     inputs: [
       [
-        '<label for="checkb1">Case Insensitive  </label>',
+        '<label for="checkb1" title="Take case into account or not to test matching words">Case Insensitive  </label>',
         "change",
         function (instance, toast, input, e) {},
         false,
@@ -236,7 +236,7 @@ const searchOnly = async function (
         false,
       ],
       [
-        '<label for="checkb2">Only words  </label>',
+        '<label for="checkb2" title="Match only entire words, not part of words.">Only words  </label>',
         "change",
         function (instance, toast, input, e) {},
         false,

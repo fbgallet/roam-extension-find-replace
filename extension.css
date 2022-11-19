@@ -23,7 +23,7 @@ input[type="checkbox"].iziToast-inputs-child {
   min-width: 10px !important;
   /* min-height: 10px !important; */
   position: relative;
-  top: 4px !important;
+  top: 3px !important;
   filter: brightness(85%);
 }
 
