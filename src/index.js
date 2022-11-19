@@ -1072,7 +1072,13 @@ const highlightNextMatch = function (shift) {
   }
 };
 
-const replaceOpened = async (node, find, replace, makeChange = true) => {
+const replaceOpened = async (
+  node,
+  find,
+  replace,
+  makeChange = true,
+  reverse = false
+) => {
   let replacedBlock = "";
   let lastIndex = 0;
   let stringArray = [];
@@ -1085,6 +1091,10 @@ const replaceOpened = async (node, find, replace, makeChange = true) => {
     if (find.global) {
       let matchIterator = [...blockContent.matchAll(find)];
       changesNb += matchIterator.length;
+      if (reverse) {
+        changesNb -= matchIterator.length;
+        changesNb++;
+      }
       if (!makeChange) {
         // if (node.page == undefined)
         //   node.page = getPageTitleByBlockUid(node.uid);
@@ -1122,18 +1132,30 @@ const replaceOpened = async (node, find, replace, makeChange = true) => {
         replace.search(/\$2/) == -1
       ) {
         replacedBlock = blockContent.replace(find, replace);
-        //changesNb++;
       } else {
         for (const m of matchIterator) {
-          if (m.index != 0) {
+          if (m.index != 0 || reverse) {
             stringArray.push(blockContent.substring(lastIndex, m.index));
           }
-          stringArray.push(regexVarInsert(m, replace, blockContent));
+          if (!reverse)
+            stringArray.push(regexVarInsert(m, replace, blockContent));
+          else {
+            let last = stringArray.length - 1;
+            stringArray[last] = regexVarInsert(
+              [stringArray[last]],
+              replace,
+              blockContent
+            );
+            stringArray.push(
+              blockContent.substring(m.index, m.index + m[0].length)
+            );
+          }
           lastIndex = m.index + m[0].length;
-          // changesNb++;
         }
         if (lastIndex < blockContent.length - 1) {
-          stringArray.push(blockContent.substring(lastIndex));
+          let end = blockContent.substring(lastIndex);
+          if (!reverse) stringArray.push(end);
+          else stringArray.push(regexVarInsert([end], replace, blockContent));
         }
         replacedBlock = stringArray.join("");
       }
@@ -1167,7 +1189,7 @@ const replaceOpened = async (node, find, replace, makeChange = true) => {
         open: isOpened,
       });
     updateBlock(uid, replacedBlock, isOpened);
-  }
+  } else if (reverse) replaceOpened(node, /.*/g, replace);
 };
 
 const regexVarInsert = function (match, replace, blockContent) {
@@ -1873,9 +1895,12 @@ const caseBulkChange = (change) => {
     modifiedBlocksCopy.pop();
   }
   let promptParameters = normalizeInputRegex(
-    "/^((?!\\(\\([^\\)]{9}\\)\\))(?!\\[\\[.*\\]\\]).)*\\w/",
+    //"/\\(\\([^\\)]{9}\\)\\)|\\[\\[((?>[^\\[\\]]+)|(?R))*\\]\\]/", // no recursive groups in Javascript :-( !!
+    "/\\(\\([^\\)]{9}\\)\\)|\\[\\[[^[\\]]*\\]\\]/", // matches [[page]] (only one level) & ((uid)) to exclude them
     replace
   ); // not simply /.*/, because we have to exclude blocks and page references!
+  promptParameters.push(true);
+  promptParameters.push(true);
   selectedNodesProcessing(expandedNodesUid, promptParameters, replaceOpened);
   changesNbBackup = changesNb;
 };
