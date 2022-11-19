@@ -3,7 +3,7 @@
  Way more than a simple Find & Replace, here a the main features currently available:
 ### - 🆕 [Search in page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-page) with an instant highlighting
 ### - 🆕 [Search in graph](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-the-whole-graph) with plain text or block references extraction
-### - [Find & Replace](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#--find--replace-or-in-the-whole-graph) in blocks selection, page, workspace or whole graph, with complete regex support.
+### - [Find & Replace](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#--find--replace-or-in-the-whole-graph) in blocks selection, page, workspace or whole graph, with complete support of [regular expressions](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#about-regex-support).
 ### - 🆕 [Extract highlights](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-extract-highlights-in-selection-or-page-command-in-the-command-palette-extract-only-the-highlighted-strings-and-add-an-alias-to-the-original-block) in selection or page, and other advanced extraction features.
 ### - 🆕 [Bulk change format](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) of selected blocks (header, alignment, view, case)
 ### - [Bulk append/prepend](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) strings, ie. at the beginning or/and at the end of a set of selected blocks.
@@ -23,7 +23,7 @@ But this search box is specially designed for Roam Research since it detects the
 
 You can have a quick overview of the search results (including hidden blocks) by clicking `🔎︎` and copied in the clipboard as plain text (block references are resolved). Or you can copy the block references with '((📋))' and paste them anywhere in your graph.
 
-The search engine support regular expressions, so that any kind of pattern can be found. See below for more details and examples.
+The search engine support regular expressions, so that any kind of pattern can be found. [See below for more details and examples](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#about-regex-support).
 
 
 ## - 🆕 Search in the whole graph
