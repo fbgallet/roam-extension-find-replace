@@ -595,7 +595,7 @@ const findAndReplace = async function (
     //    message: "(Support regex. Click (?) for details)",
     inputs: [
       [
-        '<label for="checkb1">Case Insensitive  </label>',
+        '<label for="checkb1" title="Take case into account or not to test matching words">Case Insensitive  </label>',
         "change",
         function (instance, toast, input, e) {},
         false,
@@ -616,7 +616,7 @@ const findAndReplace = async function (
         false,
       ],
       [
-        '<label for="checkb2">Only words  </label>',
+        '<label for="checkb2" title="Match only entire words, not part of words.">Only words  </label>',
         "change",
         function (instance, toast, input, e) {},
         false,
@@ -741,7 +741,7 @@ const findAndReplace = async function (
       [
         "<button>Replace</button>",
         function (instance, toast, button, e) {
-          if (changesNb === 0) {
+          if (changesNb == 0 && changesNbBackup == 0) {
             while (modifiedBlocksCopy.length > 0) {
               modifiedBlocksCopy.pop();
             }
@@ -765,7 +765,8 @@ const findAndReplace = async function (
             replaceInput
           );
           item.replaced = true;
-          if (matchesInBlock > 1)
+          if (matchesInBlock > 1) {
+            let backupSimpleChangesNb = changesNbBackup;
             actualizeHighlights(
               findInput,
               caseInsensitive,
@@ -773,7 +774,8 @@ const findAndReplace = async function (
               expandToHighlight,
               10
             );
-          else
+            changesNbBackup = backupSimpleChangesNb;
+          } else
             lastElt.parentNode.replaceChild(
               document.createTextNode(replacingStr),
               lastElt
@@ -795,10 +797,12 @@ const findAndReplace = async function (
           if (promptParameters != null) {
             lastOperation = "Find and Replace";
 
-            if (changesNb == 0)
+            console.log(modifiedBlocksCopy);
+            if (changesNb == 0 && changesNbBackup == 0)
               while (modifiedBlocksCopy.length > 0) {
                 modifiedBlocksCopy.pop();
               }
+            changesNb = 0;
             let nodesToProcess = [];
             nodesToProcess = expandedNodesUid.concat(referencedNodesUid);
             if (includeCollapsed)
@@ -806,6 +810,7 @@ const findAndReplace = async function (
             nodesToProcess = removeDuplicateBlocks(nodesToProcess);
             //  console.log("Nodes to process");
             //  console.log(nodesToProcess);
+            changesNb += changesNbBackup;
             selectedNodesProcessing(
               nodesToProcess,
               promptParameters,
@@ -937,7 +942,7 @@ const findAndReplace = async function (
         excludeDuplicate = excludeDuplicateBackup;
         removeHighlightedNodes();
         window.removeEventListener("keydown", onKeyArrows);
-        initializeGlobalVar();
+        initializeGlobalVar(true);
       }
     },
   });
@@ -957,7 +962,8 @@ const helpToast = (
   });
 };
 
-const initializeGlobalVar = () => {
+const initializeGlobalVar = (close) => {
+  if (!close) changesNbBackup = 0;
   changesNb = 0;
   scrollIndex = 0;
   matchIndex = 0;
@@ -1006,6 +1012,7 @@ const replaceSelectedMatches = function (param, i) {
     content: blockContent,
     open: attr.open,
   });
+  console.log(modifiedBlocksCopy);
   let findLocal = new RegExp(param[0].source, param[0].flags);
   matches = [...blockContent.matchAll(findLocal)];
   let position;
@@ -1150,11 +1157,15 @@ const replaceOpened = async (node, find, replace, makeChange = true) => {
       }
       changesNb++;
     }
-    modifiedBlocksCopy.push({
-      uid: uid,
-      content: blockContent,
-      open: isOpened,
-    });
+    let push = true;
+    if (changesNbBackup > 0)
+      push = modifiedBlocksCopy.filter((b) => b.uid === uid) == 0;
+    if (push)
+      modifiedBlocksCopy.push({
+        uid: uid,
+        content: blockContent,
+        open: isOpened,
+      });
     updateBlock(uid, replacedBlock, isOpened);
   }
 };
@@ -1277,6 +1288,7 @@ const actualizeHighlights = (
             highlightCurrentSearch(promptParameters, expandToHighlight);
           }, addedTimeout);
         }, timeout * timeoutForExpand);
+        changesNbBackup += changesNb;
       }
     }
   }, 10);
@@ -1441,7 +1453,6 @@ const findAndHighlight = (
 ) => {
   let blockContent = node.content;
   let uid = node.uid;
-  let collapsedParents = node.collapsedParents;
   let matchInBlockContent = find.test(blockContent);
   let matchesInRefs = 0;
   matchRefsArray = [];
@@ -1929,7 +1940,7 @@ const findAndReplaceInWholeGraph = async function (
       inputField = "hidden";
       hideButton = "display:none;";
       msg =
-        "See results as plain text with 🔎︎, as references in Sidebar with 🔎︎◨  or copy them to clipboard with ((📋))";
+        "🔎︎ to show results as plain text, 🔎︎◨ to open them in sidebar, ((📋)) to copy block refences to clipboard.";
       msgColor = "#ffffffb3";
       break;
     case "replace":
@@ -2373,7 +2384,7 @@ const infoToast = (message) => {
 const displayWholeGraphCountInTitle = (toast) => {
   let toastTitle = toast.querySelector(".iziToast-title");
   let totalStr = "";
-  totalStr = " " + matchArray.length + " matches";
+  totalStr = " " + changesNb + " matches";
   let label = "In whole graph:" + totalStr;
   toastTitle.innerText = label;
   return label;
@@ -2480,7 +2491,6 @@ const wholeGraphProcessing = (find, replace, makeChanges = true) => {
         replaceOpened(node, find, replace, makeChanges);
       }
     }
-    //console.log(matchArray);
   } else if (makeChanges) {
     changesNb = 0;
     matchArray.forEach((match) => {
@@ -2491,6 +2501,7 @@ const wholeGraphProcessing = (find, replace, makeChanges = true) => {
       replaceOpened(node, find, replace, makeChanges);
     });
   }
+  console.log(matchArray);
 };
 
 /******************************************************************************************      
@@ -2631,7 +2642,6 @@ const undoPopup = async function (
 ) {
   iziToast.warning({
     timeout: timeout,
-    maxWidth: 360,
     displayMode: display,
     id: "undo",
     color: "#CC6600C0",
@@ -2659,7 +2669,7 @@ const undoPopup = async function (
           displayChangedBlocks();
           instance.hide({ transitionOut: "fadeOut" }, toast, "button");
         },
-        false,
+        true,
       ],
     ],
   });
