@@ -84,7 +84,11 @@ Apply a given header format to a selection of blocks, or justify the content (ri
 
 Convert a given page in a block, and replace in bulk all its references in block references, or the opposite ! It's now as easy as a simple Find & Replace: enter the name of the page (or block reference), then enter a block reference where the page will be converted as the original block to witch all the references will linked (or a new page name).
 
-If you run the `Convert this block => [[page]]` command from the contextual menu of a given block, the original block reference and the page name will be automatically completed. If you have a block reference like `((9jO7A7MwG))` or a page reference like `[[page]]` in the clipboard, and run one of the conversion command with the command palette, the corresponding fields will be auto-completed.
+Options:
+  - If you enter 'DNP' in the block reference field (or let it blank), the page will be converted in a new block created on the today's daily note page.
+  - If 'move source content' is checked, all the block in the page will be moved under the new block (or all the children of the block will be move in the new page).
+  - If you run the `Convert this block => [[page]]` command from the contextual menu of a given block, the original block reference and the page name will be automatically completed.
+  - If you have a block reference like `((9jO7A7MwG))` or a page reference like `[[page]]` in the clipboard, and run one of the conversion command with the command palette, the corresponding fields will be auto-completed.
 
 Since it's a quite dangerous operation, it will be safer to check the impacted blocks first, with the `🔎︎` button.
 
