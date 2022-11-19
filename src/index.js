@@ -39,11 +39,11 @@ const sipLabel = "Find & Replace: Search in page (Ctrl + s)";
 const frpLabel = "Find & Replace: in Page zoom or selection of blocks (frp)";
 const frwLabel =
   "Find & Replace: in Workspace (Page + Sidebar + references) (frw)";
-const frgLabel = "Find & Replace: Whole Graph Replace (frg)";
-const swgLabel = "Whole Graph search (swg)";
+const frgLabel = "Find & Replace: Whole Graph Replace (wgr)";
+const swgLabel = "Whole Graph search (wgs)";
 const ptobLabel = "Page ⇒ Block conversion (pbc)";
 const btopLabel = "Block ⇒ Page conversion (bpc)";
-const formLabel = "Bulk change format of selected blocks";
+const formLabel = "Bulk change format of selected blocks (bcf)";
 const examplesOfRegex =
   "Regex have to be written between /slashes/ with simple \\backslash before special character to escape. /g flag for global search is set by default.<br><br>" +
   "<strong>In Find field:</strong><br>" +
@@ -289,7 +289,7 @@ const searchOnly = async function (
         true,
       ],
       [
-        '<label for="checkb3" title="Expand collapsed blocks with matching strings">Collapsed blocks  </label>',
+        '<label for="checkb3" title="Expand collapsed blocks with matching strings">Auto-expand blocks </label>',
         "change",
         function (instance, toast, input, e) {},
         false,
@@ -681,7 +681,7 @@ const findAndReplace = async function (
         },
       ],
       [
-        '<label for="checkb3" title="Expand collapsed blocks with matching strings">Collapsed blocks  </label>',
+        '<label for="checkb3" title="Expand collapsed blocks with matching strings">Auto-expand blocks </label>',
         "change",
         function (instance, toast, input, e) {},
         false,
