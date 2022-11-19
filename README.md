@@ -1,5 +1,7 @@
 # Find & Replace + Search box + block <=> page + bulk operations
  
+ ![F   R - gif](https://user-images.githubusercontent.com/74436347/202829393-b0b36e39-df3d-4ead-a4f4-7df5214d72db.gif)
+ 
 __Way more than a simple Find & Replace, a versatile tool for search and bulk operations:__
 
 - __🆕 [Search in page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-page) with an instant highlighting__
