@@ -1,7 +1,13 @@
 # Find & Replace, Search in page or graph, block <=> page converter and other bulk operations
  
-__Search in page with an instant highlighting of the matching words, **search in graph** with plain text or references extraction, **Find & Replace* any string of character by another, in selection, page or whole graph (with great caution), with complete regex support.__
-__Bulk operations: convert block to page, or page to block, change format of selected blocks, prepend or append some string, extract highlighted strings...__
+ Way more than a simple Find & Replace, here a the main features currently available:
+### - 🆕 [Search in page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-page) with an instant highlighting
+### - 🆕 [Search in graph](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-the-whole-graph) with plain text or block references extraction
+### - [Find & Replace](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#--find--replace-or-in-the-whole-graph) in blocks selection, page, workspace or whole graph, with complete regex support.
+### - 🆕 [Extract highlights](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-extract-highlights-in-selection-or-page-command-in-the-command-palette-extract-only-the-highlighted-strings-and-add-an-alias-to-the-original-block) in selection or page, and other advanced extraction features.
+### - 🆕 [Bulk change format](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) of selected blocks (header, alignment, view, case)
+### - [Bulk append/prepend](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) strings, ie. at the beginning or/and at the end of a set of selected blocks.
+### - 🆕 [Block <=> Page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-page--block-conversion) conversion, replacing in bulk their references.
 
 ### Update to v.2: november 18th 2022 [See changelog here for an overview of updates and new features](https://github.com/fbgallet/roam-extension-find-replace/blob/main/CHANGELOG.md) 🆕
 
@@ -66,7 +72,7 @@ Insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (
 Apply a given header format to a selection of blocks, or justify the content (right,left,center), or change the view of the childre (bullets,numbers,document), or change the case of the text (all as Upper case, all as lower case (current limitation: only text before block reference or page reference) or capitalize the first letter of the block).
 
 
-## 🆕 Page <=> Block conversion
+## 🆕 Block <=> Page conversion
 
 Convert a given page in a block, and replace in bulk all its references in block references, or the opposite ! It's now as easy as a simple Find & Replace: enter the name of the page (or block reference), then enter a block reference where the page will be converted as the original block to witch all the references will linked (or a new page name).
 
