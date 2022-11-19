@@ -1,4 +1,4 @@
-# Find & Replace, Search in page or graph, block <=> page converter and other bulk operations
+# Find & Replace + Search box + block <=> page + bulk operations
  
  Way more than a simple Find & Replace, here a the main features currently available:
 ### - 🆕 [Search in page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-page) with an instant highlighting
