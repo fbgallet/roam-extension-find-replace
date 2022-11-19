@@ -1189,14 +1189,20 @@ const replaceOpened = async (
         open: isOpened,
       });
     updateBlock(uid, replacedBlock, isOpened);
-  } else if (reverse) replaceOpened(node, /.*/g, replace);
+  } else if (reverse) {
+    replaceOpened(node, /.*/g, replace);
+  }
 };
 
 const regexVarInsert = function (match, replace, blockContent) {
-  let indexOfRegex = replace.search(/\$regex/i);
+  let indexOfRegex = replace.search(/\$regexw?/i);
   let isWholeBlock = blockContent.length == match[0].length;
 
-  if (isWholeBlock && indexOfRegex == 0 && replace.length == 6) {
+  if (
+    isWholeBlock &&
+    indexOfRegex == 0 &&
+    (replace.length == 6 || replace == "$RegexW")
+  ) {
     return regexFormat(replace, blockContent);
   } else {
     let indexOfV1 = replace.search(/\$1/);
@@ -1206,7 +1212,12 @@ const regexVarInsert = function (match, replace, blockContent) {
     let regexWriting = "";
 
     if (indexOfRegex != -1) {
-      regexWriting = replace.substring(indexOfRegex, indexOfRegex + 6);
+      let regexLength = 6;
+      if (replace == "$RegexW") regexLength++;
+      regexWriting = replace.substring(
+        indexOfRegex,
+        indexOfRegex + regexLength
+      );
       replaceSplit = replace.split(regexWriting);
       stringToInsert = regexFormat(regexWriting, match[0]);
       stringToInsert = replaceSplit[0] + stringToInsert + replaceSplit[1];
@@ -1231,7 +1242,7 @@ const regexVarInsert = function (match, replace, blockContent) {
   }
 };
 
-const regexFormat = function (regexW, strMatch) {
+const regexFormat = (regexW, strMatch) => {
   let strIns = "";
   switch (regexW) {
     case "$RegEx":
@@ -1245,6 +1256,15 @@ const regexFormat = function (regexW, strMatch) {
       break;
     case "$Regex":
       strIns = strMatch.charAt(0).toUpperCase() + strMatch.slice(1);
+      break;
+    case "$RegexW":
+      let words = [...strMatch.matchAll(/[a-zA-ZÀ-ž]+/g)];
+      for (let i = 0; i < words.length; i++) {
+        let capitalizedWord =
+          words[i][0].charAt(0).toUpperCase() + words[i][0].slice(1);
+        strMatch = strMatch.replace(words[i][0], capitalizedWord);
+      }
+      strIns = strMatch;
       break;
     default:
       strIns = strMatch;
@@ -1798,6 +1818,12 @@ const changeBlockFormat = async (node, headingLevel, alignment, view) => {
 
 const changeBlockFormatPrompt = async function () {
   changesNb = 0;
+  let caseOptions =
+    '<option value="noChange">Case</option>' +
+    '<option value="toUpper">UPPER case</option>' +
+    '<option value="toLower">lower case</option>' +
+    '<option value="capitalizeB" title="Capitale first letter of the block">Cap. block</option>' +
+    '<option value="capitalizeW" title="Capitale Each Word">Cap. Words</option>';
   iziToast.show({
     maxWidth: 500,
     timeout: false,
@@ -1822,7 +1848,7 @@ const changeBlockFormatPrompt = async function () {
         function (instance, toast, select, e) {},
       ],
       [
-        '<select style="color:#FFFFFFB3"><option value="noChange">Case</option><option value="toUpper">UPPER case</option><option value="toLower">lower case</option><option value="capitalize">Capitalize</option></select>',
+        '<select style="color:#FFFFFFB3">' + caseOptions + "</select>",
         "change",
         function (instance, toast, select, e) {},
       ],
@@ -1886,8 +1912,11 @@ const caseBulkChange = (change) => {
     case "toLower":
       replace = "$regex";
       break;
-    case "capitalize":
+    case "capitalizeB":
       replace = "$Regex";
+      break;
+    case "capitalizeW":
+      replace = "$RegexW";
       break;
   }
 
@@ -1896,7 +1925,9 @@ const caseBulkChange = (change) => {
   }
   let promptParameters = normalizeInputRegex(
     //"/\\(\\([^\\)]{9}\\)\\)|\\[\\[((?>[^\\[\\]]+)|(?R))*\\]\\]/", // no recursive groups in Javascript :-( !!
-    "/\\(\\([^\\)]{9}\\)\\)|\\[\\[[^[\\]]*\\]\\]/", // matches [[page]] (only one level) & ((uid)) to exclude them
+    "/\\(\\([^\\)]{9}\\)\\)|#?\\[\\[[^[\\]]*\\]\\]|#[^\\s]*|.*::/",
+    // matches [[page]] (only one level) & ((uid)) to exclude them
+    // & #tag #[[tag]] attribut::
     replace
   ); // not simply /.*/, because we have to exclude blocks and page references!
   promptParameters.push(true);
