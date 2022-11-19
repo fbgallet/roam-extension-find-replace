@@ -1,6 +1,6 @@
 # Find & Replace + Search box + block <=> page + bulk operations
- 
- ![F   R - gif](https://user-images.githubusercontent.com/74436347/202829393-b0b36e39-df3d-4ead-a4f4-7df5214d72db.gif)
+
+![F R - demo gif](https://user-images.githubusercontent.com/74436347/202829680-fdec5c9c-e902-4e8a-945d-8a68669ed387.gif) 
  
 __Way more than a simple Find & Replace, a versatile tool for search and bulk operations:__
 
