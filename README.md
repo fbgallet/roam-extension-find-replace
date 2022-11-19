@@ -42,10 +42,12 @@ The range of application depends on two factors:
 - the range of selection: if you have selected a set of blocks (blue highlighted with mouse or Shift + Up or Down), only the selected blocks and their expanded children will be processed. If you are using the recent multiselect feature with checkboxes on the right (enabled with Ctrl + m), only checked blocks will be processed. Otherwise, the current page will be processed, including the linked references and the blocks or pages opened in the right sidebar if you click on 'workspace' option.
 - the 'Include collapsed blocks' option (in the setting panel): if it's enabled, expanded AND collapsed blocks will be processed when clicking on 'Replace all' button. Otherwise, only the visible blocks will be processed. If you check 'Auto-expand blocks' option in the dialog box, collapsed blocks containing a matching string will be expanded and can be processed even if the former option is disabled.
 
-Find & Replace can be used to remove some content in bulk: enter the content to remove in the Find field, and let the Replace field blank.
+💡 Find & Replace can be used to remove some content in bulk: enter the content to remove in the Find field, and let the Replace field blank.
 It can also be used to replace different writings of a word in a given alias. Suppose that you have written 'word', 'Word', 'words' and 'Words' in your graph and that you want to replace the last three by an alias to [[word]], e.g. `[Word]([[word]])`. You have just to write this regex in the find field: `/Words?|words/` and this in the replace field: `[$RegEx]([[word]])`.
 
 ### Find & Replace in whole Graph (Warning: danger zone!):
+
+![F R - in graph](https://user-images.githubusercontent.com/74436347/202827469-4454ca34-b361-434b-912b-70224e809470.png)
 
 With great caution ⚠️, you can search and replace some string in the whole graph. Don't forget that a string can be a subset of another string that we haven't imagined. The operation can theoretically be undone (with the Undo command below, not with Cmd-Ctrl + Z), but only immediately, not after a graph reload or after other find and research operations, unless you click on 'display changed blocks in sidebar'. A warning message will request confirmation and indicate the number of blocks that will be modified.
 For more safety, the new `🔎︎` feature allows you to have a quick overview of blocks that will be changed before doing it.
@@ -62,17 +64,23 @@ If this option is enabled (in the setting panel), not the entire blocks but only
 
 ### `Prepend or append content to selected blocks` command:
 
-Insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (append) of selected blocks. Only expanded blocks are concerned.
+![F R - append](https://user-images.githubusercontent.com/74436347/202827636-ec408223-091b-4352-b1b7-2d60d9b9feb9.png)
 
-![image](https://user-images.githubusercontent.com/74436347/185461724-c32adb75-86cf-46c8-9335-f2c218d6d587.png)
+Insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (append) of selected blocks. Only expanded blocks are concerned.
 
 
 ### 🆕 `Bulk change format of selected blocks` command:
+
+![F R - format](https://user-images.githubusercontent.com/74436347/202827539-64b45e04-647c-44d1-9119-7aebe0f58042.png)
 
 Apply a given header format to a selection of blocks, or justify the content (right,left,center), or change the view of the childre (bullets,numbers,document), or change the case of the text (all as Upper case, all as lower case (current limitation: only text before block reference or page reference) or capitalize the first letter of the block).
 
 
 ## 🆕 Block <=> Page conversion
+
+![image](https://user-images.githubusercontent.com/74436347/202827676-c014f2e3-d9a3-42e9-bc51-dbb46b1b465e.png)
+
+![image](https://user-images.githubusercontent.com/74436347/202827749-4e65964a-2b03-453a-8135-b62a3f3031de.png)
 
 Convert a given page in a block, and replace in bulk all its references in block references, or the opposite ! It's now as easy as a simple Find & Replace: enter the name of the page (or block reference), then enter a block reference where the page will be converted as the original block to witch all the references will linked (or a new page name).
 
@@ -94,9 +102,29 @@ There is 4 possible formating of the main variable (pay attention to upper and l
 Capture groups $1 and $2 can also be (multi-) used, assuming that the RegEx formula includes groups in parenthesis.
 
 You can click on `?` button in Find & Replace dialog box to see these examples: 
+Regex have to be written between /slashes/ with simple \\backslash before special character to escape. flag for global search is set by default.
+### In Find field:
+  - /words?/`, matches all 'word' (singular) or 'words' (plural) occurences, 
+  - `/sk(y|ies)/`, matches all 'sky' (singular) or 'skies' (plural) occurences, 
+  - `/cheese|cake/`, matches all 'cheese' OR 'cake',
+  - `/[A-Z]\w+/`, matches all words beginning with a capital letter,
+  - `/.*/` matches all text,
+  - `/\(\([^\)]{9}\)\)/` matches all block references,
+  - `/\[\[([^\[^\]]*)\]\]/` matches all page references (not nested) and capture page name,
+  - `/\[([^\]]*)\]\(\(\([^\)]{9}\)\)\)/` matches `[alias](((refs)))` and capture alias.
+ 
+### In Replace field:
+  - `$RegEx` is the placeholder corresponding to the machting strings (pay attention to the case),
+  - `$REGEX` capitalizes all letters of the mathcing strings,
+  - `$regex` set to lower case all letters,
+  - `$Regex` capitalize first letter,
+  - `[$RegEx]([[page]])` make each machting string as an alias of [[page]],
+  - `$1` replace each matching string (e.g. page references) by the first capture group (e.g. the page name),
+  - `**$1** n°$2` insert two capture groups in a new formated string
 
 
-Current limitations:
+
+### Current limitations:
 - limits of auto-expand blocks feature:
 Auto-expand blocks in Search in page or Find & Replace doesn't works always properly. The API command to expand blocks doesn't seem to be 100% reliable when there is an important amount of indented blocks to open. You may have to click on refresh button `↻` until the counter indicates that there are no more words in a folded blocks. Anyway it's only a matter of block display: all matching words will be replaced if you click on 'Replace all'.
 
