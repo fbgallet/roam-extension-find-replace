@@ -1,23 +1,25 @@
 # Find & Replace + Search box + block <=> page + bulk operations
  
- Way more than a simple Find & Replace, here a the main features currently available:
-### - 🆕 [Search in page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-page) with an instant highlighting
-### - 🆕 [Search in graph](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-the-whole-graph) with plain text or block references extraction
-### - [Find & Replace](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#--find--replace-or-in-the-whole-graph) in blocks selection, page, workspace or whole graph, with complete support of [regular expressions](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#about-regex-support).
-### - 🆕 [Extract highlights](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-extract-highlights-in-selection-or-page-command-in-the-command-palette-extract-only-the-highlighted-strings-and-add-an-alias-to-the-original-block) in selection or page, and other advanced extraction features.
-### - 🆕 [Bulk change format](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) of selected blocks (header, alignment, view, case)
-### - [Bulk append/prepend](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) strings, ie. at the beginning or/and at the end of a set of selected blocks.
-### - 🆕 [Block <=> Page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-block--page-conversion) conversion, replacing in bulk their references.
+__Way more than a simple Find & Replace, here a the main features currently available:__
 
-### Update to v.2: november 18th 2022 [See changelog here for an overview of updates and new features](https://github.com/fbgallet/roam-extension-find-replace/blob/main/CHANGELOG.md) 🆕
+- __🆕 [Search in page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-page) with an instant highlighting__
+- __🆕 [Search in graph](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-the-whole-graph) with plain text or block references extraction__
+- __[Find & Replace](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#--find--replace-or-in-the-whole-graph) in blocks selection, page, workspace or whole graph, with complete support of [regular expressions](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#about-regex-support).__
+- __🆕 [Extract highlights](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-extract-highlights-in-selection-or-page-command-in-the-command-palette-extract-only-the-highlighted-strings-and-add-an-alias-to-the-original-block) in selection or page, and other advanced extraction features.__
+- __🆕 [Bulk change format](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) of selected blocks (header, alignment, view, case)__
+- __[Bulk append/prepend](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) strings, ie. at the beginning or/and at the end of a set of selected blocks.__
+- __🆕 [Block <=> Page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-block--page-conversion) conversion, replacing in bulk their references.__
 
-### All the commands are available via the command palette (Cmd-Ctrl + P). Enter "Find & R..." and you will see all of them.
+__Update to v.2: november 18th 2022 [See changelog here for an overview of updates and new features](https://github.com/fbgallet/roam-extension-find-replace/blob/main/CHANGELOG.md) 🆕__
+
+__💡 All the commands are available via the command palette (Cmd-Ctrl + P). Enter "Find & R..." and you will see all of them.__
+
 
 ## - 🆕 Search in page
 
 ![F R - Search in page](https://user-images.githubusercontent.com/74436347/202797471-b43fd997-a8f3-4896-af20-29948961a7ed.png)
 
-Press `Ctrl + S` open a search box similar to the brothers' search box usually called with Ctrl+F: the search results are instantly highlighted in the current page and and switching from one to the other automatically scrolls the display.
+Press `Ctrl + S` to open a search box similar to the browsers' search box usually called with Ctrl+F: the search results are instantly highlighted in the current page and and switching from one to the other automatically scrolls the display.
 
 But this search box is specially designed for Roam Research since it detects the words hidden in the collapsed blocks and expands them automatically, by checking an option. The search can also be extended to the whole workspace, linked references and pages in the sidebar.
 
@@ -107,7 +109,7 @@ Capture groups $1 and $2 can also be (multi-) used, assuming that the RegEx form
 
 You can click on `?` button in Find & Replace dialog box to see these examples: 
 Regex have to be written between /slashes/ with simple \\backslash before special character to escape. flag for global search is set by default.
-### In Find field:
+__In Find field:__
   - /words?/`, matches all 'word' (singular) or 'words' (plural) occurences, 
   - `/sk(y|ies)/`, matches all 'sky' (singular) or 'skies' (plural) occurences, 
   - `/cheese|cake/`, matches all 'cheese' OR 'cake',
@@ -117,7 +119,7 @@ Regex have to be written between /slashes/ with simple \\backslash before specia
   - `/\[\[([^\[^\]]*)\]\]/` matches all page references (not nested) and capture page name,
   - `/\[([^\]]*)\]\(\(\([^\)]{9}\)\)\)/` matches `[alias](((refs)))` and capture alias.
  
-### In Replace field:
+__In Replace field:__
   - `$RegEx` is the placeholder corresponding to the machting strings (pay attention to the case),
   - `$REGEX` capitalizes all letters of the mathcing strings,
   - `$regex` set to lower case all letters,
@@ -137,4 +139,4 @@ Text in code blocks are not highlighted. Likewise, if your search for strings in
 
 ---
 
-For any question or suggestion, DM me on Twitter: [@fbgallet](https://twitter.com/fbgallet) or Roam Slack.
+For any question or suggestion, DM me on Twitter and follow me to be informed of updates and new extensions: [@fbgallet](https://twitter.com/fbgallet) or Roam Slack.
