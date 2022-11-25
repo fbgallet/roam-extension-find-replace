@@ -35,7 +35,8 @@ import {
 } from "./utils";
 import { displayForm, myDialog } from "./formDialog";
 
-const sipLabel = "Find & Replace: Search in page (Ctrl + s)";
+const sipLabel =
+  "Find & Replace: Search in page, selection of blocks or workspace (Ctrl + s)";
 const frpLabel = "Find & Replace: in Page zoom or selection of blocks (frp)";
 const frwLabel =
   "Find & Replace: in Workspace (Page + Sidebar + references) (frw)";
@@ -185,7 +186,7 @@ Node.prototype.getAttributes = (uid) => {
 /*	Search and Highlight (supporting regular expressions)
 *****************************************************************************************/
 const searchOnly = async function (
-  findInput,
+  findInput = "",
   caseInsensitive = false,
   wordOnly = false,
   expandToHighlight = false,
@@ -426,6 +427,7 @@ const searchOnly = async function (
         function (instance, toast, button, e, inputs) {
           window.removeEventListener("keydown", onKeyArrows);
           position = getNextPosition(position);
+
           searchOnly(
             findInput,
             caseInsensitive,
@@ -434,7 +436,7 @@ const searchOnly = async function (
             workspace,
             position,
             false,
-            displayMatchCountInTitle(toast)
+            getCurrentToastLabel(toast)
           );
         },
       ],
@@ -890,7 +892,7 @@ const findAndReplace = async function (
           window.removeEventListener("keydown", onKeyArrows);
           position = getNextPosition(position);
           findAndReplace(
-            displayMatchCountInTitle(toast),
+            getCurrentToastLabel(toast),
             findInput,
             replaceInput,
             caseInsensitive,
@@ -995,6 +997,10 @@ const displayMatchCountInTitle = function (toast) {
     unhighlightableStr;
   toastTitle.innerText = label;
   return label;
+};
+
+const getCurrentToastLabel = function (toast) {
+  return toast.querySelector(".iziToast-title").innerText;
 };
 
 const replaceSelectedMatches = function (param, i) {
@@ -1379,7 +1385,7 @@ const highlightAllMatches = function (inDialog = false) {
     let id = parseInt(item.id);
     ordererMatches.push(matchArray[id]);
   });
-  matchArray = ordererMatches;
+  if (!inDialog) matchArray = ordererMatches;
   if (eltFound.length != 0 && !inDialog)
     eltFound[0].scrollIntoView({
       behavior: "smooth",
@@ -1534,7 +1540,13 @@ const highlightInHtmlElement = (el, find, replace, uid, bref = null) => {
     }
   }
 };
-const highlightString = (node, find, replace, uid, bref = null) => {
+const highlightString = (
+  node,
+  find,
+  replace = null,
+  uid = null,
+  bref = null
+) => {
   if (node.nodeType == 3) {
     // nodeType 3 is Text
     let foundChild = processTextNode(node.nodeValue, find, replace, uid, bref);
@@ -1661,14 +1673,15 @@ const processTextNode = (text, find, replace, uid = null, bref = null) => {
           replace: replaceStr,
         });
       }
-    matchArray.push({
-      uid: uid,
-      strToReplace: i[0],
-      indexInBlock: indexInNode + nbInBlock,
-      replaced: false,
-      blockRef: bref,
-      matchIndex: matchIndex - 1,
-    });
+    if (replace != null)
+      matchArray.push({
+        uid: uid,
+        strToReplace: i[0],
+        indexInBlock: indexInNode + nbInBlock,
+        replaced: false,
+        blockRef: bref,
+        matchIndex: matchIndex - 1,
+      });
     t = document.createTextNode(i[0]);
     e.appendChild(t);
     node.appendChild(e);
@@ -2427,13 +2440,14 @@ const errorToast = (message) => {
     message: message,
   });
 };
-const infoToast = (message) => {
+const infoToast = (message, timeout = 4000, position = iziToastPosition) => {
   iziToast.info({
-    timeout: 4000,
+    timeout: timeout,
     id: "info",
-    position: iziToastPosition,
+    position: position,
     zindex: 999,
     title: message,
+    onOpened: function (instance, toast) {},
   });
 };
 
@@ -2534,7 +2548,11 @@ const warningPopupWholeGraph = (
 };
 
 const wholeGraphProcessing = (find, replace, makeChanges = true) => {
+  let toast;
   if (matchArray.length == 0) {
+    // toast = infoToast(
+    //   "Searching in the whole graph (it can takes a few seconds if there is a lot of blocks)..."
+    // );
     initializeGlobalVar();
     const all = getAllBlockData();
     //console.log(all);
@@ -2547,8 +2565,12 @@ const wholeGraphProcessing = (find, replace, makeChanges = true) => {
         replaceOpened(node, find, replace, makeChanges);
       }
     }
+    //toast.instance.hide({ transitionOut: "fadeOut" }, toast.toast);
   } else if (makeChanges) {
     changesNb = 0;
+    // toast = infoToast(
+    //   "Processing the whole graph (it can takes a few seconds if there is a lot of blocks)..."
+    // );
     matchArray.forEach((match) => {
       let node = new Node(match.uid, {
         string: match.content,
@@ -2556,8 +2578,9 @@ const wholeGraphProcessing = (find, replace, makeChanges = true) => {
       });
       replaceOpened(node, find, replace, makeChanges);
     });
+    //toast.instance.hide({ transitionOut: "fadeOut" }, toast.toast, "button");
   }
-  console.log(matchArray);
+  //console.log(matchArray);
 };
 
 /******************************************************************************************      
@@ -3396,40 +3419,40 @@ function setHighlightColor(color) {
 // }
 
 export default {
-  onload: ({ extensionAPI }) => {
+  onload: async ({ extensionAPI }) => {
     extensionAPI.settings.panel.create(panelConfig);
     if (extensionAPI.settings.get("colorSetting") == null)
-      extensionAPI.settings.set("colorSetting", "Orange");
+      await extensionAPI.settings.set("colorSetting", "Orange");
     setHighlightColor(extensionAPI.settings.get("colorSetting"));
     if (extensionAPI.settings.get("positionSetting") == null)
-      extensionAPI.settings.set("positionSetting", "topRight");
+      await extensionAPI.settings.set("positionSetting", "topRight");
     iziToastPosition = extensionAPI.settings.get("positionSetting");
     if (extensionAPI.settings.get("expandSetting") == null)
-      extensionAPI.settings.set("expandSetting", true);
+      await extensionAPI.settings.set("expandSetting", true);
     includeCollapsed = extensionAPI.settings.get("expandSetting");
     if (extensionAPI.settings.get("embedSetting") == null)
-      extensionAPI.settings.set("embedSetting", false);
+      await extensionAPI.settings.set("embedSetting", false);
     includeEmbeds = extensionAPI.settings.get("embedSetting");
     if (extensionAPI.settings.get("duplicateSetting") == null)
-      extensionAPI.settings.set("duplicateSetting", false);
+      await extensionAPI.settings.set("duplicateSetting", false);
     excludeDuplicate = extensionAPI.settings.get("duplicateSetting");
     if (extensionAPI.settings.get("beforeSetting") == null)
-      extensionAPI.settings.set("beforeSetting", false);
+      await extensionAPI.settings.set("beforeSetting", false);
     displayBefore = extensionAPI.settings.get("beforeSetting");
     // if (extensionAPI.settings.get("wholeSetting") == null)
     //   extensionAPI.settings.set("wholeSetting", false);
     // allowWhole = extensionAPI.settings.get("wholeSetting");
     if (extensionAPI.settings.get("sortSetting") == null)
-      extensionAPI.settings.set("sortSetting", "page");
+      await extensionAPI.settings.set("sortSetting", "page");
     matchesSortedBy = extensionAPI.settings.get("sortSetting");
     if (extensionAPI.settings.get("pathSetting") == null)
-      extensionAPI.settings.set("pathSetting", false);
+      await extensionAPI.settings.set("pathSetting", false);
     showPath = extensionAPI.settings.get("pathSetting");
     if (extensionAPI.settings.get("matchSetting") == null)
-      extensionAPI.settings.set("matchSetting", false);
+      await extensionAPI.settings.set("matchSetting", false);
     extractMatchesOnly = extensionAPI.settings.get("matchSetting");
     if (extensionAPI.settings.get("truncateSetting") == null)
-      extensionAPI.settings.set("truncateSetting", 150);
+      await extensionAPI.settings.set("truncateSetting", 150);
     codeBlockLimit = extensionAPI.settings.get("truncateSetting");
 
     window.addEventListener("keydown", onKeydown);
@@ -3437,8 +3460,10 @@ export default {
     window.roamAlphaAPI.ui.commandPalette.addCommand({
       label: sipLabel,
       callback: async () => {
+        let selection = getSelection();
+        if (selection === null) selection = "";
         await getNodes();
-        searchOnly();
+        searchOnly(selection);
       },
     });
 

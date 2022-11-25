@@ -34,7 +34,7 @@ export function displayForm() {
   dialog.style.width = "60%";
   dialog.style.position = "absolute";
   dialog.style.top = "200px";
-  dialog.style.left = "40px";
+  // dialog.style.left = "40px";
   let cancelButton = dialog.querySelector(".bp3-button-text");
   cancelButton.innerText = "Close";
   let submitButton = dialog.querySelector(".bp3-button.bp3-intent-primary");
