@@ -35,6 +35,13 @@ import {
 } from "./utils";
 import { displayForm, myDialog } from "./formDialog";
 
+const referencesRegexStr =
+  "/\\(\\([^\\)]{9}\\)\\)|#?\\[\\[[^[\\]]*\\]\\]|#[^\\s]*|.*::/";
+// matches [[page]] (only one level) & ((uid)) to exclude them
+// & #tag #[[tag]] attribut::
+//"/\\(\\([^\\)]{9}\\)\\)|\\[\\[((?>[^\\[\\]]+)|(?R))*\\]\\]/" doesn't work: no recursive groups in Javascript :-( !
+const referencesRegex = new RegExp(referencesRegexStr, "g");
+
 const sipLabel =
   "Find & Replace: Search in page, selection of blocks or workspace (Ctrl + s)";
 const frpLabel = "Find & Replace: in Page zoom or selection of blocks (frp)";
@@ -1201,13 +1208,13 @@ const replaceOpened = async (
 };
 
 const regexVarInsert = function (match, replace, blockContent) {
-  let indexOfRegex = replace.search(/\$regexw?/i);
+  let indexOfRegex = replace.search(/\$regexw?s?/i);
   let isWholeBlock = blockContent.length == match[0].length;
 
   if (
     isWholeBlock &&
     indexOfRegex == 0 &&
-    (replace.length == 6 || replace == "$RegexW")
+    (replace.length == 6 || replace == "$RegexW" || replace == "$RegexS")
   ) {
     return regexFormat(replace, blockContent);
   } else {
@@ -1219,7 +1226,7 @@ const regexVarInsert = function (match, replace, blockContent) {
 
     if (indexOfRegex != -1) {
       let regexLength = 6;
-      if (replace == "$RegexW") regexLength++;
+      if (replace == "$RegexW" || replace == "$RegexS") regexLength++;
       regexWriting = replace.substring(
         indexOfRegex,
         indexOfRegex + regexLength
@@ -1269,6 +1276,25 @@ const regexFormat = (regexW, strMatch) => {
         let capitalizedWord =
           words[i][0].charAt(0).toUpperCase() + words[i][0].slice(1);
         strMatch = strMatch.replace(words[i][0], capitalizedWord);
+      }
+      strIns = strMatch;
+      break;
+    case "$RegexS":
+      let sentences = [
+        ...strMatch.matchAll(
+          /[a-zA-ZÀ-ž\[\(][a-zA-ZÀ-ž\#\[\]\(\)\{\}\@\-\*\$:;=><\s]+?[\.\?\!\n]|[a-zA-ZÀ-ž\[\(][a-zA-ZÀ-ž\#\[\]\(\)\{\}\@\-\*\$:;=><\s]+$/g
+        ),
+      ];
+      for (let i = 0; i < sentences.length; i++) {
+        let sentence = sentences[i][0];
+        const firstRefMatch = referencesRegex.exec(sentence);
+        if (firstRefMatch != null && firstRefMatch.index == 0) continue; // do not capitalize sentence begining by a reference
+        let capitalizedSentence =
+          sentence.charAt(0).toUpperCase() + sentence.slice(1);
+        strMatch =
+          strMatch.substring(0, sentences[i].index) +
+          capitalizedSentence +
+          strMatch.substring(sentences[i].index + capitalizedSentence.length);
       }
       strIns = strMatch;
       break;
@@ -1835,8 +1861,9 @@ const changeBlockFormatPrompt = async function () {
     '<option value="noChange">Case</option>' +
     '<option value="toUpper">UPPER case</option>' +
     '<option value="toLower">lower case</option>' +
-    '<option value="capitalizeB" title="Capitale first letter of the block">Cap. block</option>' +
-    '<option value="capitalizeW" title="Capitale Each Word">Cap. Words</option>';
+    '<option value="capitalizeB" title="Capitalize first letter of the block">Cap. block</option>' +
+    '<option value="capitalizeW" title="Capitalize Each Word">Cap. Words</option>' +
+    '<option value="capitalizeS" title="Capitalize each sentence.">Cap. sentences</option>';
   iziToast.show({
     maxWidth: 500,
     timeout: false,
@@ -1918,6 +1945,7 @@ const changeBlockFormatPrompt = async function () {
 
 const caseBulkChange = (change) => {
   let replace;
+  let input = referencesRegexStr; // not simply /.*/, because we have to exclude blocks and page references!
   switch (change) {
     case "toUpper":
       replace = "$REGEX";
@@ -1931,20 +1959,18 @@ const caseBulkChange = (change) => {
     case "capitalizeW":
       replace = "$RegexW";
       break;
+    case "capitalizeS":
+      replace = "$RegexS";
+      break;
   }
 
   while (modifiedBlocksCopy.length > 0) {
     modifiedBlocksCopy.pop();
   }
-  let promptParameters = normalizeInputRegex(
-    //"/\\(\\([^\\)]{9}\\)\\)|\\[\\[((?>[^\\[\\]]+)|(?R))*\\]\\]/", // no recursive groups in Javascript :-( !!
-    "/\\(\\([^\\)]{9}\\)\\)|#?\\[\\[[^[\\]]*\\]\\]|#[^\\s]*|.*::/",
-    // matches [[page]] (only one level) & ((uid)) to exclude them
-    // & #tag #[[tag]] attribut::
-    replace
-  ); // not simply /.*/, because we have to exclude blocks and page references!
+  let promptParameters = normalizeInputRegex(input, replace);
   promptParameters.push(true);
-  promptParameters.push(true);
+  if (change == "capitalizeS") promptParameters[0] = /.*/g;
+  else promptParameters.push(true);
   selectedNodesProcessing(expandedNodesUid, promptParameters, replaceOpened);
   changesNbBackup = changesNb;
 };
@@ -2849,14 +2875,14 @@ const onKeydown = async (e) => {
   }
 };
 
-function getSelectedNodes(selection) {
+function getSelectedNodes(selection, inCollapsed = false) {
   let uniqueUids = [];
   selection.forEach((block) => {
     let inputBlock = block.querySelector(".rm-block__input");
     let uid = inputBlock.id.slice(-9);
     if (!uniqueUids.includes(uid)) {
       uniqueUids.push(uid);
-      getNodesFromTree(getTreeByUid(uid), false, expandedNodesUid);
+      getNodesFromTree(getTreeByUid(uid), false, expandedNodesUid, inCollapsed);
     }
   });
 }
@@ -2935,7 +2961,17 @@ function initializeNodesArrays() {
 
 async function getNodesInPage() {
   let zoomUid = await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
+  console.log(zoomUid);
   if (zoomUid != undefined) getNodesFromPageZoomAndReferences(zoomUid);
+  else getNodesFromDailyNotes();
+}
+
+function getNodesFromDailyNotes() {
+  let dailyNotes = document.querySelectorAll("div.roam-log-page");
+  dailyNotes.forEach((dnp) => {
+    let blocks = dnp.querySelectorAll(".rm-block-main");
+    getSelectedNodes(blocks, true);
+  });
 }
 
 function getNodesFromPageZoomAndReferences(zoomUid) {
