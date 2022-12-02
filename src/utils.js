@@ -17,6 +17,36 @@ export function getTreeByUid(uid) {
   } else return null;
 }
 
+export function getPlainTextOfChildren(uid) {
+  let childContent = window.roamAlphaAPI.pull(
+    "[:block/uid {:block/children [:block/string]}]",
+    [":block/uid", uid]
+  )[":block/children"];
+  console.log(childContent);
+  let content = "";
+  if (childContent != undefined) {
+    for (let i = 0; i < childContent.length; i++) {
+      content += " " + childContent[i][":block/string"];
+    }
+  }
+  return content;
+}
+
+export function getChildrenUid(uid) {
+  let children = window.roamAlphaAPI.pull(
+    "[:block/uid {:block/children [:block/uid]}]",
+    [":block/uid", uid]
+  )[":block/children"];
+  if (children != undefined) {
+    let childrenUid = [];
+    for (let i = 0; i < children.length; i++) {
+      childrenUid.push(children[i][":block/uid"]);
+    }
+    return childrenUid;
+  }
+  return null;
+}
+
 export function getParentTreeUids(uid) {
   if (uid) {
     let arrayOfArrays = window.roamAlphaAPI.q(`[:find ?p
@@ -154,7 +184,8 @@ export const normalizeInputRegex = function (
   replacingStr,
   caseNotSensitive = false,
   wordOnly = false,
-  expandToHighlight = false
+  expandToHighlight = false,
+  searchLogic = ""
 ) {
   let toFindregexp;
   if (toFindStr != null && replacingStr != null) {
@@ -171,10 +202,34 @@ export const normalizeInputRegex = function (
       if (caseNotSensitive) {
         regPar2 += "i";
       }
-      if (wordOnly) toFindStr = "\\b" + toFindStr + "\\b";
-      toFindregexp = new RegExp(toFindStr, regPar2);
+      if (searchLogic != "") {
+        let logicString = "";
+        let logicStringAnd = "";
+        let split = toFindStr.split(" ");
+        for (let i = 0; i < split.length; i++) {
+          if (wordOnly) split[i] = "\\b" + split[i] + "\\b";
+          //if (searchLogic == "OR") {
+          logicString += split[i];
+          if (i != split.length - 1) logicString += "|";
+          //}
+          if (searchLogic == "AND") {
+            logicStringAnd += "(?=.*" + split[i] + ")";
+            if (i == split.length - 1) logicStringAnd += ".*";
+          }
+        }
+        if (searchLogic == "AND")
+          logicString = { and: logicStringAnd, or: logicString };
+        toFindStr = logicString;
+      } else if (wordOnly) toFindStr = "\\b" + toFindStr + "\\b";
+      if (searchLogic == "AND")
+        toFindregexp = {
+          and: new RegExp(toFindStr.and, regPar2),
+          or: new RegExp(toFindStr.or, regPar2),
+        };
+      else toFindregexp = new RegExp(toFindStr, regPar2);
     }
-    return [toFindregexp, replacingStr];
+    console.log(toFindregexp);
+    return [toFindregexp, replacingStr, searchLogic];
   }
   return null;
 };

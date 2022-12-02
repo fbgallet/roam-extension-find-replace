@@ -32,6 +32,8 @@ import {
   getPageNameByPageUid,
   getAllBlockData,
   getPageTitleByBlockUid,
+  getPlainTextOfChildren,
+  getChildrenUid,
 } from "./utils";
 import { displayForm, myDialog } from "./formDialog";
 
@@ -215,6 +217,7 @@ const searchOnly = async function (
   let positionIcon = getNextPositionIcon(position);
   var inputChanges = 0;
   let switchToFindAndReplace = false;
+  let searchLogic = "";
   if (refresh) initializeGlobalVar();
   iziToast.show({
     id: "searchBox",
@@ -238,7 +241,8 @@ const searchOnly = async function (
             caseInsensitive,
             wordOnly,
             expandToHighlight,
-            10
+            10,
+            searchLogic
           );
         },
         false,
@@ -259,10 +263,27 @@ const searchOnly = async function (
             caseInsensitive,
             wordOnly,
             expandToHighlight,
-            10
+            10,
+            searchLogic
           );
         },
         false,
+      ],
+      [
+        '<select style="color:#FFFFFFB3"><option value="">Full string</option><option value="OR">OR</option><option value="AND">AND</option></select>',
+        "change",
+        function (instance, toast, select, e) {
+          searchLogic = select.value;
+          actualizeHighlights(
+            findInput,
+            caseInsensitive,
+            wordOnly,
+            expandToHighlight,
+            10,
+            searchLogic
+          );
+        },
+        true,
       ],
       [
         '<input type="text" value="' +
@@ -288,7 +309,8 @@ const searchOnly = async function (
                   caseInsensitive,
                   wordOnly,
                   expandToHighlight,
-                  10
+                  10,
+                  searchLogic
                 );
               }
             }
@@ -312,7 +334,8 @@ const searchOnly = async function (
             caseInsensitive,
             wordOnly,
             expandToHighlight,
-            10
+            10,
+            searchLogic
           );
         },
         false,
@@ -333,7 +356,8 @@ const searchOnly = async function (
             caseInsensitive,
             wordOnly,
             expandToHighlight,
-            10
+            10,
+            searchLogic
           );
         },
         false,
@@ -362,7 +386,8 @@ const searchOnly = async function (
             caseInsensitive,
             wordOnly,
             expandToHighlight,
-            10
+            10,
+            searchLogic
           );
         },
       ],
@@ -1098,8 +1123,15 @@ const replaceOpened = async (
   let blockContent = node.content;
   let uid = node.uid;
   let isOpened = node.open;
+  // let contentResolved = resolveReferences(blockContent);
+  // let matchAND = false;
+  // let searchLogic = "AND";
+  // if (searchLogic == "AND")
+  //   find.test(contentResolved) ? (matchAND = true) : (matchAND = false);
+  // console.log(contentResolved);
+  // console.log(matchAND);
 
-  if (find.test(blockContent)) {
+  if (find.test(blockContent) || matchAND) {
     find.lastIndex = 0;
     if (find.global) {
       let matchIterator = [...blockContent.matchAll(find)];
@@ -1313,7 +1345,8 @@ const actualizeHighlights = (
   caseInsensitive,
   wordOnly,
   expandToHighlight = false,
-  timeout
+  timeout,
+  searchLogic = ""
 ) => {
   setTimeout(() => {
     if (findInput.length > 0) {
@@ -1322,7 +1355,9 @@ const actualizeHighlights = (
         findInput,
         "",
         caseInsensitive,
-        wordOnly
+        wordOnly,
+        expandToHighlight,
+        searchLogic
       );
       if (timeout >= 0) {
         let timeoutForExpand = 10;
@@ -1443,15 +1478,36 @@ const onKeyArrows = function (e) {
   }
 };
 
-const expandPathBeforeHighlight = async (node, find, replace) => {
+const expandPathBeforeHighlight = async (node, find, replace, searchLogic) => {
   let blockContent = node.content;
   let uid = node.uid;
   let collapsedParents = node.collapsedParents;
   refsUids = [];
-  if (
-    find.test(blockContent) ||
-    findInReferences(find, node.refs, blockContent) > 0
-  ) {
+  let hasMatches = false;
+  let hasANDmatchesInChildren = false;
+  let resolvedBlockContent = resolveReferences(blockContent);
+  console.log(searchLogic);
+  if (searchLogic != "AND") {
+    find.lastIndex = 0;
+    hasMatches = find.test(resolvedBlockContent);
+  } else {
+    hasMatches = find.and.test(resolvedBlockContent);
+    hasMatches =
+      hasMatches ||
+      ANDmatchInChildren(
+        node,
+        blockContent,
+        resolvedBlockContent,
+        find,
+        replace,
+        true
+      );
+  }
+  // if (
+  //   find.test(blockContent) ||
+  //   findInReferences(find, node.refs, blockContent) > 0
+  // )
+  if (hasMatches) {
     if (collapsedParents.length != 0) {
       await openParentNodes(collapsedParents);
     }
@@ -1518,19 +1574,87 @@ const findInReferences = (find, refs, blockContent, count = 0) => {
   return count;
 };
 
-const findAndHighlight = (
+const ANDmatchInChildren = (
+  node,
+  blockContent,
+  resolvedBlockContent,
+  find,
+  replace,
+  expandToHighlight
+) => {
+  let uid = node.uid;
+  let matchInBlockContent = false;
+  find.or.lastIndex = 0;
+  let matchOR = find.or.test(blockContent);
+  let ANDincludeChildren = true;
+  if (matchOR && ANDincludeChildren) {
+    let childNodesToProcess = getChildrenUid(uid);
+    if (childNodesToProcess != null) {
+      let resolvedChildContent = getPlainTextOfChildren(uid);
+      let resolvedBlockAndChildContent =
+        resolvedBlockContent + " " + resolvedChildContent;
+      find.and.lastIndex = 0;
+      console.log(find.and);
+      matchInBlockContent = find.and.test(resolvedBlockAndChildContent);
+      console.log(matchInBlockContent);
+      if (matchInBlockContent) {
+        if (expandToHighlight) updateBlock(uid, blockContent, true);
+        let childMatches;
+        childMatches = resolvedChildContent.match(find.or).length;
+        if (node.open != true) matchingHidden += childMatches;
+        else {
+          childNodesToProcess = childNodesToProcess.map(
+            (uid) => new Node(uid, getBlockAttributes(uid))
+          );
+          //matchingTotal -= childMatches;
+          selectedNodesProcessing(
+            childNodesToProcess,
+            [find.or, replace, "OR", true],
+            findAndHighlight
+          );
+        }
+      }
+    }
+  }
+  return matchInBlockContent;
+};
+
+const findAndHighlight = async (
   node,
   find,
   replace,
+  searchLogic,
   expandToHighlight = false,
   collapsed = false
 ) => {
   let blockContent = node.content;
   let uid = node.uid;
-  let matchInBlockContent = find.test(blockContent);
+  let matchInBlockContent;
+  if (searchLogic != "AND") {
+    find.lastIndex = 0;
+    matchInBlockContent = find.test(blockContent);
+  } else {
+    let resolvedBlockContent = resolveReferences(blockContent);
+    find.and.lastIndex = 0;
+    console.log(resolvedBlockContent);
+    matchInBlockContent = find.and.test(resolvedBlockContent);
+    console.log(matchInBlockContent);
+    if (!matchInBlockContent) {
+      matchInBlockContent = ANDmatchInChildren(
+        node,
+        blockContent,
+        resolvedBlockContent,
+        find,
+        replace,
+        expandToHighlight
+      );
+    }
+    if (matchInBlockContent) find = find.or;
+  }
   let matchesInRefs = 0;
   matchRefsArray = [];
   if (node.refs.length != 0)
+    //&& !(searchLogic == "AND" && matchInBlockContent))
     matchesInRefs = findInReferences(find, node.refs, blockContent);
   let selector = "[id$='" + uid + "']";
   let elt = document.querySelector(selector);
@@ -1539,7 +1663,7 @@ const findAndHighlight = (
     elt === null &&
     (matchInBlockContent || matchesInRefs > 0)
   ) {
-    expandPathBeforeHighlight(node, find, replace);
+    expandPathBeforeHighlight(node, find, replace, searchLogic);
     elt = document.querySelector(selector);
   }
   if (matchInBlockContent || matchesInRefs > 0) {
