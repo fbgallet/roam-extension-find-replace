@@ -1,6 +1,6 @@
 import getEditTime from "roamjs-components/queries/getEditTimeByBlockUid";
 
-const uidRegex = /\(\([^\)]{9}\)\)/g;
+export const uidRegex = /\(\([^\)]{9}\)\)/g;
 const pageRegex = /\[\[.*\]\]/g; // very simplified...
 
 export function getTreeByUid(uid) {
@@ -184,8 +184,8 @@ export const normalizeInputRegex = function (
   replacingStr,
   caseNotSensitive = false,
   wordOnly = false,
-  expandToHighlight = false,
-  searchLogic = ""
+  searchLogic = "",
+  expandToHighlight = false
 ) {
   let toFindregexp;
   if (toFindStr != null && replacingStr != null) {
@@ -377,6 +377,7 @@ export const groupMatchesByPage = function (matchArray) {
 };
 
 export const sortByPageTitle = function (array) {
+  console.log(array);
   return array
     .map((node) => {
       return {
@@ -398,15 +399,18 @@ export const sortByEditTime = function (array) {
     .sort((a, b) => b.lastEdit - a.lastEdit);
 };
 
-export const resolveReferences = (content) => {
+export const resolveReferences = (content, uidsArray) => {
   if (uidRegex.test(content)) {
     uidRegex.lastIndex = 0;
     let matches = content.matchAll(uidRegex);
     for (const match of matches) {
-      let resolvedRef = getBlockContentByUid(match[0].slice(2, -2));
+      let refUid = match[0].slice(2, -2);
+      let isNewRef = !uidsArray.includes(refUid);
+      uidsArray.push(refUid);
+      let resolvedRef = getBlockContentByUid(refUid);
       uidRegex.lastIndex = 0;
-      if (uidRegex.test(resolvedRef))
-        resolvedRef = resolveReferences(resolvedRef);
+      if (uidRegex.test(resolvedRef) && isNewRef)
+        resolvedRef = resolveReferences(resolvedRef, uidsArray);
       content = content.replace(match, resolvedRef);
     }
   }

@@ -34,6 +34,7 @@ import {
   getPageTitleByBlockUid,
   getPlainTextOfChildren,
   getChildrenUid,
+  uidRegex,
 } from "./utils";
 import { displayForm, myDialog } from "./formDialog";
 
@@ -115,7 +116,7 @@ var modifiedBlocksCopy = [];
 var inputBackup = [];
 var refsUids = [];
 var eltFound;
-var currentToast;
+var currentToast = null;
 var scrollIndex = 0;
 var matchIndex = 0;
 var matchArray = [];
@@ -123,6 +124,7 @@ var matchingStringsArray = [];
 var matchRefsArray;
 var matchingTotal = 0;
 var matchingHidden = 0;
+var ANDwithChildren = false;
 export var textToCopy;
 
 var iziToastColor = "#262626F0";
@@ -270,10 +272,14 @@ const searchOnly = async function (
         false,
       ],
       [
-        '<select style="color:#FFFFFFB3"><option value="">Full string</option><option value="OR">OR</option><option value="AND">AND</option></select>',
+        '<select style="color:#FFFFFFB3" title="Search logic: search for the full string, or for words separated by a space - one OR the other, one AND the other in the block"><option value="" title="full string, including spaces">full str.</option><option value="OR">OR</option><option value="AND">AND</option><option value="AND+" title="Include first children (experimental)">AND+1</option></select>',
         "change",
         function (instance, toast, select, e) {
           searchLogic = select.value;
+          if (searchLogic === "AND+") {
+            ANDwithChildren = true;
+            searchLogic = "AND";
+          } else ANDwithChildren = false;
           actualizeHighlights(
             findInput,
             caseInsensitive,
@@ -283,7 +289,7 @@ const searchOnly = async function (
             searchLogic
           );
         },
-        true,
+        false,
       ],
       [
         '<input type="text" value="' +
@@ -367,14 +373,14 @@ const searchOnly = async function (
       [
         "<button>▲</button>",
         function (instance, toast, button, e) {
-          highlightNextMatch(-1);
+          highlightNextMatch(-1, toast);
           displayMatchCountInTitle(toast);
         },
       ],
       [
         "<button>▼</button>",
         function (instance, toast, button, e) {
-          highlightNextMatch(1);
+          highlightNextMatch(1, toast);
           displayMatchCountInTitle(toast);
         },
       ],
@@ -419,23 +425,28 @@ const searchOnly = async function (
             findInput,
             "",
             caseInsensitive,
-            wordOnly
+            wordOnly,
+            searchLogic
           );
           displaySearchResustsInPlainText(promptParameters);
         },
       ],
       [
         "<button title='Copy in Clipboard block refs of blocks containing matching strings (or only them)'>((📋))</button>",
-        function (instance, toast, button, e) {
+        async function (instance, toast, button, e) {
           let promptParameters = normalizeInputRegex(
             findInput,
             "",
             caseInsensitive,
-            wordOnly
+            wordOnly,
+            searchLogic
           );
           let searchString = promptParameters[0];
           if (!isRegex(findInput)) searchString = findInput;
           //console.log(matchArray);
+          let changesNbBackup = changesNb;
+          let matchArrayBackup = matchArray;
+          await getFullMatchArrayInPage(promptParameters);
           copyMatchingUidsToClipboard(
             matchArray,
             searchString,
@@ -450,6 +461,8 @@ const searchOnly = async function (
               matchArray.length +
                 " blocks or strings copied in the clipboard. Paste them anywhere in your graph!"
             );
+          changesNb = changesNbBackup;
+          matchArray = matchArrayBackup;
         },
       ],
       [
@@ -503,6 +516,7 @@ const searchOnly = async function (
           expandToHighlight,
           workspace,
         ];
+        currentToast = null;
         if (!switchToFindAndReplace) {
           workspace = false;
           selectedBlocks = [];
@@ -514,21 +528,28 @@ const searchOnly = async function (
   });
 };
 
-const displaySearchResustsInPlainText = async (promptParameters) => {
-  let changesNbBackup = changesNb;
-  let matchArrayBackup = matchArray;
+const getFullMatchArrayInPage = async (promptParameters) => {
   matchArray = [];
   promptParameters.push(false);
   let nodesToProcess = expandedNodesUid
     .concat(collapsedNodesUid)
     .concat(referencedNodesUid);
   nodesToProcess = removeDuplicateBlocks(nodesToProcess);
+
   await selectedNodesProcessing(
     nodesToProcess,
     promptParameters,
     replaceOpened,
     false
   );
+};
+
+const displaySearchResustsInPlainText = async (promptParameters) => {
+  let changesNbBackup = changesNb;
+  let matchArrayBackup = matchArray;
+
+  getFullMatchArrayInPage(promptParameters);
+
   displayResultsInPlainText(
     matchArray.length +
       " blocks in this page or workspace containing matching strings",
@@ -607,6 +628,7 @@ const findAndReplace = async function (
   position = iziToastPosition,
   refresh = true
 ) {
+  let searchLogic = "";
   var inputChanges = 0;
   if (refresh) initializeGlobalVar();
   formatChange = false;
@@ -644,7 +666,8 @@ const findAndReplace = async function (
             caseInsensitive,
             wordOnly,
             expandToHighlight,
-            10
+            10,
+            searchLogic
           );
         },
         false,
@@ -665,7 +688,24 @@ const findAndReplace = async function (
             caseInsensitive,
             wordOnly,
             expandToHighlight,
-            10
+            10,
+            searchLogic
+          );
+        },
+        false,
+      ],
+      [
+        '<select style="color:#FFFFFFB3" title="Search logic: search for the full string, or for words separated by a space - one OR the other"><option value="" title="full string, including spaces">full str.</option><option value="OR">OR</option></select>',
+        "change",
+        function (instance, toast, select, e) {
+          searchLogic = select.value;
+          actualizeHighlights(
+            findInput,
+            caseInsensitive,
+            wordOnly,
+            expandToHighlight,
+            10,
+            searchLogic
           );
         },
         false,
@@ -694,7 +734,8 @@ const findAndReplace = async function (
                   caseInsensitive,
                   wordOnly,
                   expandToHighlight,
-                  10
+                  10,
+                  searchLogic
                 );
               }
             }
@@ -730,7 +771,8 @@ const findAndReplace = async function (
             caseInsensitive,
             wordOnly,
             expandToHighlight,
-            10
+            10,
+            searchLogic
           );
         },
         false,
@@ -751,7 +793,8 @@ const findAndReplace = async function (
             caseInsensitive,
             wordOnly,
             expandToHighlight,
-            10
+            10,
+            searchLogic
           );
         },
         false,
@@ -761,14 +804,14 @@ const findAndReplace = async function (
       [
         "<button>▲</button>",
         function (instance, toast, button, e) {
-          highlightNextMatch(-1);
+          highlightNextMatch(-1, toast);
           displayMatchCountInTitle(toast);
         },
       ],
       [
         "<button>▼</button>",
         function (instance, toast, button, e) {
-          highlightNextMatch(1);
+          highlightNextMatch(1, toast);
           displayMatchCountInTitle(toast);
         },
       ],
@@ -787,7 +830,8 @@ const findAndReplace = async function (
             findInput,
             replaceInput,
             caseInsensitive,
-            wordOnly
+            wordOnly,
+            searchLogic
           );
           let matchesInBlock = getMatchesNbInBlock(matchArray, item.uid);
           replaceSelectedMatches(
@@ -806,7 +850,8 @@ const findAndReplace = async function (
               caseInsensitive,
               wordOnly,
               expandToHighlight,
-              10
+              10,
+              searchLogic
             );
             changesNbBackup = backupSimpleChangesNb;
           } else
@@ -815,7 +860,7 @@ const findAndReplace = async function (
               lastElt
             );
           displayMatchCountInTitle(toast);
-          if (nbElts > 1) highlightNextMatch(1);
+          if (nbElts > 1) highlightNextMatch(1, toast);
           changesNb++;
         },
       ],
@@ -826,7 +871,8 @@ const findAndReplace = async function (
             findInput,
             replaceInput,
             caseInsensitive,
-            wordOnly
+            wordOnly,
+            searchLogic
           );
           if (promptParameters != null) {
             lastOperation = "Find and Replace";
@@ -871,7 +917,8 @@ const findAndReplace = async function (
             caseInsensitive,
             wordOnly,
             expandToHighlight,
-            10
+            10,
+            searchLogic
           );
         },
       ],
@@ -882,7 +929,8 @@ const findAndReplace = async function (
             findInput,
             replaceInput,
             caseInsensitive,
-            wordOnly
+            wordOnly,
+            searchLogic
           );
           displaySearchResustsInPlainText(promptParameters);
         },
@@ -894,7 +942,8 @@ const findAndReplace = async function (
             findInput,
             replaceInput,
             caseInsensitive,
-            wordOnly
+            wordOnly,
+            searchLogic
           );
           let searchString = promptParameters[0];
           if (!findInput.includes("/")) searchString = findInput;
@@ -952,7 +1001,8 @@ const findAndReplace = async function (
           caseInsensitive,
           wordOnly,
           expandToHighlight,
-          10
+          10,
+          searchLogic
         );
       }
     },
@@ -967,6 +1017,7 @@ const findAndReplace = async function (
           expandToHighlight,
           workspace,
         ];
+        currentToast = null;
         changesNbBackup = changesNb;
         if (changesNb > 0) {
           undoPopup(changesNb);
@@ -999,6 +1050,7 @@ const helpToast = (
 const initializeGlobalVar = (close) => {
   if (!close) changesNbBackup = 0;
   changesNb = 0;
+  ANDwithChildren = false;
   scrollIndex = 0;
   matchIndex = 0;
   matchingTotal = 0;
@@ -1036,6 +1088,8 @@ const getCurrentToastLabel = function (toast) {
 };
 
 const replaceSelectedMatches = function (param, i) {
+  let find = param[0];
+  let replace = param[1];
   let blockContent = "";
   let length = matchArray.length;
   var matches = [];
@@ -1050,9 +1104,10 @@ const replaceSelectedMatches = function (param, i) {
     content: blockContent,
     open: attr.open,
   });
-  console.log(modifiedBlocksCopy);
-  let findLocal = new RegExp(param[0].source, param[0].flags);
-  matches = [...blockContent.matchAll(findLocal)];
+  //console.log(modifiedBlocksCopy);
+  //let findLocal = new RegExp(param[0].source, param[0].flags);
+  find.lastIndex = 0;
+  matches = [...blockContent.matchAll(find)];
   let position;
   if (match.indexInBlock < matches.length)
     position = matches[match.indexInBlock].index;
@@ -1060,7 +1115,7 @@ const replaceSelectedMatches = function (param, i) {
   else position = matches[0].index;
   let replacedContent = blockContent
     .slice(position)
-    .replace(match.strToReplace, param[1]);
+    .replace(match.strToReplace, replace);
   blockContent = blockContent.slice(0, position) + replacedContent;
   let isAnotherUid = true;
 
@@ -1073,7 +1128,13 @@ const replaceSelectedMatches = function (param, i) {
   }
 };
 
-const highlightNextMatch = function (shift) {
+const highlightNextMatch = function (shift, toast) {
+  if (!toast || !eltFound) {
+    window.removeEventListener("keydown", onKeyArrows);
+    console.log(
+      "keyArrow eventListener removed for Find & Replace extension removed"
+    );
+  }
   let lastElt = eltFound[scrollIndex];
   setNotCurrentHighlight(lastElt);
   let index = scrollIndex + shift;
@@ -1114,6 +1175,7 @@ const replaceOpened = async (
   node,
   find,
   replace,
+  searchLogic = "",
   makeChange = true,
   reverse = false
 ) => {
@@ -1121,17 +1183,18 @@ const replaceOpened = async (
   let lastIndex = 0;
   let stringArray = [];
   let blockContent = node.content;
+  // searchLogic != "" && node.refs != undefined
+  //   ? (blockContent = resolveReferences(node.content, node.uid))
+  //   : (blockContent = node.content);
+  // = node.content;
   let uid = node.uid;
   let isOpened = node.open;
-  // let contentResolved = resolveReferences(blockContent);
-  // let matchAND = false;
-  // let searchLogic = "AND";
-  // if (searchLogic == "AND")
-  //   find.test(contentResolved) ? (matchAND = true) : (matchAND = false);
-  // console.log(contentResolved);
-  // console.log(matchAND);
+  if (searchLogic != "") {
+    blockContent = resolveReferences(blockContent, [uid]);
+    if (searchLogic == "AND") find = find.and;
+  }
 
-  if (find.test(blockContent) || matchAND) {
+  if (find.test(blockContent)) {
     find.lastIndex = 0;
     if (find.global) {
       let matchIterator = [...blockContent.matchAll(find)];
@@ -1164,7 +1227,7 @@ const replaceOpened = async (
         }
         matchArray.push({
           uid: uid,
-          content: blockContent,
+          content: node.content,
           open: isOpened,
           page: node.page,
         });
@@ -1356,8 +1419,8 @@ const actualizeHighlights = (
         "",
         caseInsensitive,
         wordOnly,
-        expandToHighlight,
-        searchLogic
+        searchLogic,
+        expandToHighlight
       );
       if (timeout >= 0) {
         let timeoutForExpand = 10;
@@ -1466,13 +1529,13 @@ const setNotCurrentHighlight = function (elt) {
 const onKeyArrows = function (e) {
   if (e.key == "ArrowUp") {
     document.activeElement.blur();
-    highlightNextMatch(-1);
+    highlightNextMatch(-1, currentToast);
     displayMatchCountInTitle(currentToast);
     e.preventDefault();
   }
   if (e.key == "ArrowDown") {
     document.activeElement.blur();
-    highlightNextMatch(1);
+    highlightNextMatch(1, currentToast);
     displayMatchCountInTitle(currentToast);
     e.preventDefault();
   }
@@ -1485,23 +1548,24 @@ const expandPathBeforeHighlight = async (node, find, replace, searchLogic) => {
   refsUids = [];
   let hasMatches = false;
   let hasANDmatchesInChildren = false;
-  let resolvedBlockContent = resolveReferences(blockContent);
-  console.log(searchLogic);
+  let resolvedBlockContent = resolveReferences(blockContent, [uid]);
+
   if (searchLogic != "AND") {
     find.lastIndex = 0;
     hasMatches = find.test(resolvedBlockContent);
   } else {
     hasMatches = find.and.test(resolvedBlockContent);
-    hasMatches =
-      hasMatches ||
-      ANDmatchInChildren(
-        node,
-        blockContent,
-        resolvedBlockContent,
-        find,
-        replace,
-        true
-      );
+    if (ANDwithChildren)
+      hasMatches =
+        hasMatches ||
+        ANDmatchInChildren(
+          node,
+          blockContent,
+          resolvedBlockContent,
+          find,
+          replace,
+          true
+        );
   }
   // if (
   //   find.test(blockContent) ||
@@ -1586,8 +1650,7 @@ const ANDmatchInChildren = (
   let matchInBlockContent = false;
   find.or.lastIndex = 0;
   let matchOR = find.or.test(blockContent);
-  let ANDincludeChildren = true;
-  if (matchOR && ANDincludeChildren) {
+  if (matchOR) {
     let childNodesToProcess = getChildrenUid(uid);
     if (childNodesToProcess != null) {
       let resolvedChildContent = getPlainTextOfChildren(uid);
@@ -1634,12 +1697,10 @@ const findAndHighlight = async (
     find.lastIndex = 0;
     matchInBlockContent = find.test(blockContent);
   } else {
-    let resolvedBlockContent = resolveReferences(blockContent);
+    let resolvedBlockContent = resolveReferences(blockContent, [uid]);
     find.and.lastIndex = 0;
-    console.log(resolvedBlockContent);
     matchInBlockContent = find.and.test(resolvedBlockContent);
-    console.log(matchInBlockContent);
-    if (!matchInBlockContent) {
+    if (ANDwithChildren && !matchInBlockContent) {
       matchInBlockContent = ANDmatchInChildren(
         node,
         blockContent,
@@ -1654,7 +1715,7 @@ const findAndHighlight = async (
   let matchesInRefs = 0;
   matchRefsArray = [];
   if (node.refs.length != 0)
-    //&& !(searchLogic == "AND" && matchInBlockContent))
+    // && !(searchLogic == "AND"))
     matchesInRefs = findInReferences(find, node.refs, blockContent);
   let selector = "[id$='" + uid + "']";
   let elt = document.querySelector(selector);
@@ -2123,6 +2184,7 @@ const findAndReplaceInWholeGraph = async function (
   let positionIcon = getNextPositionIcon(position);
   let excludeDuplicateBackup = excludeDuplicate;
   excludeDuplicate = true;
+  let searchLogic = "";
   let checkCase = "";
   if (caseInsensitive) checkCase = "checked";
   let checkWord = "";
@@ -2146,6 +2208,7 @@ const findAndReplaceInWholeGraph = async function (
   }
   let msg = "Danger zone! Check the affected blocks first 🔎︎";
   let msgColor = "#ff7878"; // red
+  let ANDsearchOption = "";
   switch (mode) {
     case "page to block":
       inputPlaceholder = "Page name: [[page]] or page";
@@ -2158,6 +2221,7 @@ const findAndReplaceInWholeGraph = async function (
     case "search":
       inputField = "hidden";
       hideButton = "display:none;";
+      ANDsearchOption = '<option value="AND">AND</option>';
       msg =
         "🔎︎ to show results as plain text, 🔎︎◨ to open them in sidebar, ((📋)) to copy block refences to clipboard.";
       msgColor = "#ffffffb3";
@@ -2200,6 +2264,21 @@ const findAndReplaceInWholeGraph = async function (
         function (instance, toast, input, e) {
           wordOnly = input.checked;
           initializeGlobalVar();
+        },
+        false,
+      ],
+      [
+        '<select style="color:#FFFFFFB3" title="Search logic: search for the full string, or for words separated by a space - one OR the other, one AND the other in the block"><option value="" title="full string, including spaces">full str.</option><option value="OR">OR</option>' +
+          ANDsearchOption +
+          "</select>",
+        "change",
+        function (instance, toast, select, e) {
+          initializeGlobalVar();
+          searchLogic = select.value;
+          if (searchLogic === "AND+") {
+            ANDwithChildren = true;
+            searchLogic = "AND";
+          } else ANDwithChildren = false;
         },
         false,
       ],
@@ -2265,19 +2344,16 @@ const findAndReplaceInWholeGraph = async function (
     buttons: [
       [
         "<button title='See the list of blocks containing matching strings (or the strings only) in plain text, in a dialog box.'>🔎︎</button>",
-        function (instance, toast, button, e) {
+        async function (instance, toast, button, e) {
           let promptParameters = normalizeInputRegex(
             findInput,
             replaceInput,
             caseInsensitive,
-            wordOnly
+            wordOnly,
+            searchLogic
           );
           if (findInput.length > 0) {
-            wholeGraphProcessing(
-              promptParameters[0],
-              promptParameters[1],
-              false
-            );
+            wholeGraphProcessing(promptParameters, false, toast);
             label = displayWholeGraphCountInTitle(toast);
             if (matchArray.length > 0) {
               displayResultsInPlainText(
@@ -2297,14 +2373,11 @@ const findAndReplaceInWholeGraph = async function (
             findInput,
             replaceInput,
             caseInsensitive,
-            wordOnly
+            wordOnly,
+            searchLogic
           );
           if (findInput.length > 0) {
-            wholeGraphProcessing(
-              promptParameters[0],
-              promptParameters[1],
-              false
-            );
+            wholeGraphProcessing(promptParameters, false);
             label = displayWholeGraphCountInTitle(toast);
             let searchString = promptParameters[0];
             if (!findInput.includes("/")) searchString = findInput;
@@ -2328,14 +2401,11 @@ const findAndReplaceInWholeGraph = async function (
             findInput,
             replaceInput,
             caseInsensitive,
-            wordOnly
+            wordOnly,
+            searchLogic
           );
           if (findInput.length > 0) {
-            wholeGraphProcessing(
-              promptParameters[0],
-              promptParameters[1],
-              false
-            );
+            wholeGraphProcessing(promptParameters, false);
             label = displayWholeGraphCountInTitle(toast);
             let searchString = promptParameters[0];
             if (!findInput.includes("/")) searchString = findInput;
@@ -2373,7 +2443,8 @@ const findAndReplaceInWholeGraph = async function (
             findInput,
             replaceInput,
             caseInsensitive,
-            wordOnly
+            wordOnly,
+            searchLogic
           );
           if (findInput.length > 0)
             switch (mode) {
@@ -2508,6 +2579,9 @@ const displayResultsInPlainText = (
   displayForm();
   let dialog = document.querySelector(".bp3-dialog");
   let liIterator = dialog.querySelectorAll("li");
+  if (promptParameters.length >= 3 && promptParameters[2] == "AND") {
+    promptParameters[0] = promptParameters[0].or;
+  }
   if (!extractMatchesOnly || !isRegex(findInput)) {
     for (const node of liIterator) {
       highlightString(node.firstChild, promptParameters[0]);
@@ -2540,7 +2614,7 @@ const getResultsDisplayJSX = (treeArray) => {
                 if (display.includes("```"))
                   display = display.substring(0, codeBlockLimit) + " (...)";
                 else {
-                  display = resolveReferences(display);
+                  display = resolveReferences(display, [block.uid]);
                   textToCopy += "  - " + display + "\n";
                 }
                 return (
@@ -2590,9 +2664,15 @@ const errorToast = (message) => {
     message: message,
   });
 };
-const infoToast = (message, timeout = 4000, position = iziToastPosition) => {
+const infoToast = async (
+  message,
+  timeout = 4000,
+  position = iziToastPosition,
+  title = null
+) => {
   iziToast.info({
     timeout: timeout,
+    title: title,
     id: "info",
     position: position,
     zindex: 999,
@@ -2601,12 +2681,15 @@ const infoToast = (message, timeout = 4000, position = iziToastPosition) => {
   });
 };
 
-const displayWholeGraphCountInTitle = (toast) => {
-  let toastTitle = toast.querySelector(".iziToast-title");
+const displayWholeGraphCountInTitle = async (toast, msg = "") => {
+  const toastTitle = toast.querySelector(".iziToast-title");
   let totalStr = "";
-  totalStr = " " + changesNb + " matches";
-  let label = "In whole graph:" + totalStr;
-  toastTitle.innerText = label;
+  let label = "";
+  if (msg == "") {
+    totalStr = " " + changesNb + " matches";
+    label = "In whole graph:" + totalStr;
+  } else label = msg;
+  toastTitle.firstChild.data = label;
   return label;
 };
 
@@ -2630,7 +2713,7 @@ const warningPopupWholeGraph = (
       title = "Convert a page in a block ";
       findRegex = getPageMentionRegex(find);
   }
-  wholeGraphProcessing(findRegex, replace, false);
+  wholeGraphProcessing([findRegex, replace], false);
   if (mode === "block to page") changesNb++;
   if (changesNb === 0) {
     errorToast(
@@ -2673,7 +2756,7 @@ const warningPopupWholeGraph = (
               changePageToBlock(find, replace, moveContent);
               break;
             default:
-              wholeGraphProcessing(find, replace, true);
+              wholeGraphProcessing([find, replace], true);
           }
           changesNbBackup = changesNb;
           mainToast.instance.hide(
@@ -2697,22 +2780,46 @@ const warningPopupWholeGraph = (
   });
 };
 
-const wholeGraphProcessing = (find, replace, makeChanges = true) => {
-  let toast;
+const wholeGraphProcessing = (
+  promptParameters,
+  makeChanges = true,
+  toast = null
+) => {
+  let find = promptParameters[0];
+  let replace = promptParameters[1];
+  let searchLogic = "";
+  if (promptParameters.length > 2) {
+    searchLogic = promptParameters[2];
+  }
   if (matchArray.length == 0) {
-    // toast = infoToast(
-    //   "Searching in the whole graph (it can takes a few seconds if there is a lot of blocks)..."
-    // );
     initializeGlobalVar();
     const all = getAllBlockData();
     //console.log(all);
-    for (let i = 0; i < all.length; i++) {
+    const totalBlocksNb = all.length;
+    // infoToast(
+    //   "Searching in the whole graph (it can takes a few seconds if there is a lot of blocks)...",
+    //   totalBlocksNb / 15
+    // );
+    console.log(totalBlocksNb + " blocks to process");
+    let ratio = 10;
+    for (let i = 0; i < totalBlocksNb; i++) {
+      // TODO : progress indicator, needed for large graph
+      // const ratioCst = ratio;
+      // if (i > totalBlocksNb * (ratioCst / 100)) {
+      //   if (toast != null)
+      //     displayWholeGraphCountInTitle(
+      //       toast,
+      //       "Processing... (" + ratioCst + "%)"
+      //     );
+      //   console.log("Processing... (" + ratioCst + "%)");
+      //   ratio = ratioCst + 10;
+      // }
       if (all[i].text != "") {
         let node = new Node(all[i].uid, {
           string: all[i].text,
           page: all[i].page,
         });
-        replaceOpened(node, find, replace, makeChanges);
+        replaceOpened(node, find, replace, searchLogic, makeChanges);
       }
     }
     //toast.instance.hide({ transitionOut: "fadeOut" }, toast.toast);
@@ -2726,7 +2833,7 @@ const wholeGraphProcessing = (find, replace, makeChanges = true) => {
         string: match.content,
         open: match.open,
       });
-      replaceOpened(node, find, replace, makeChanges);
+      replaceOpened(node, find, replace, "", makeChanges);
     });
     //toast.instance.hide({ transitionOut: "fadeOut" }, toast.toast, "button");
   }
@@ -2758,7 +2865,7 @@ const changeBlockToPage = (blockUid, pageName = "", moveContent = false) => {
   pageName = pageMention.slice(2, -2);
 
   let promptParameters = normalizeInputRegex(blockMention, pageMention);
-  wholeGraphProcessing(promptParameters[0], promptParameters[1], true);
+  wholeGraphProcessing(promptParameters, true);
   let pageUid = getPageUidByNameOrCreateIt(pageName);
 
   if (moveContent) moveChildBlocks(blockUid, pageUid);
@@ -2779,7 +2886,7 @@ const changePageToBlock = (pageName, blockUid = "", moveContent = false) => {
 
   // Take into account all the forms of page reference: [[page]], #page, #[[page]] and page::
   let pageMentionsRegex = getPageMentionRegex(pageName);
-  wholeGraphProcessing(pageMentionsRegex, blockMention, true);
+  wholeGraphProcessing([pageMentionsRegex, blockMention], true);
   if (moveContent) moveChildBlocks(pageUid, blockUid);
   updateBlock(blockUid, pageName);
   changesNbBackup = changesNb;
@@ -3003,6 +3110,7 @@ function getSelectedNodes(selection, inCollapsed = false) {
   let uniqueUids = [];
   selection.forEach((block) => {
     let inputBlock = block.querySelector(".rm-block__input");
+    if (!inputBlock) return;
     let uid = inputBlock.id.slice(-9);
     if (!uniqueUids.includes(uid)) {
       uniqueUids.push(uid);
@@ -3026,6 +3134,7 @@ function getSelection() {
   let startUid = window.roamAlphaAPI.ui.getFocusedBlock()?.["block-uid"];
   let selection = document.querySelectorAll(".block-highlight-blue");
   let checkSelection = roamAlphaAPI.ui.individualMultiselect.getSelectedUids();
+  if (selection.length == 0) selection = null;
   if (
     startUid != undefined ||
     selection != null ||
@@ -3081,17 +3190,19 @@ function initializeNodesArrays() {
   referencedNodesUid = [];
   uniqueReferences = [];
   refsUids = [];
+  selectedBlocks = [];
 }
 
 async function getNodesInPage() {
   let zoomUid = await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
-  console.log(zoomUid);
-  if (zoomUid != undefined) getNodesFromPageZoomAndReferences(zoomUid);
-  else getNodesFromDailyNotes();
+  if (!zoomUid) getNodesFromDailyNotes();
+  else getNodesFromPageZoomAndReferences(zoomUid);
 }
 
 function getNodesFromDailyNotes() {
-  let dailyNotes = document.querySelectorAll("div.roam-log-page");
+  let dailyNotes = document.querySelectorAll(
+    "div.roam-log-page:not(.roam-log-preview)"
+  );
   dailyNotes.forEach((dnp) => {
     let blocks = dnp.querySelectorAll(".rm-block-main");
     getSelectedNodes(blocks, true);
