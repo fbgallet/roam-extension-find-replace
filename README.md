@@ -1,6 +1,6 @@
 # Find & Replace, Search box, block <=> page conversion, bulk operations
 
-![F R - demo gif](https://user-images.githubusercontent.com/74436347/202829680-fdec5c9c-e902-4e8a-945d-8a68669ed387.gif) 
+![F R gif demo 2](https://user-images.githubusercontent.com/74436347/206271356-ef6d6085-8280-4b53-a622-bed4e733dcd9.gif)
  
 __Way more than a simple Find & Replace, a versatile tool for search and bulk operations:__
 
@@ -13,7 +13,7 @@ __Way more than a simple Find & Replace, a versatile tool for search and bulk op
 - __[Bulk append/prepend](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) strings, ie. at the beginning or/and at the end of a set of selected blocks.__
 - __[Full regular expressions support](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#full-regex-support)__
 
-__Update to v.2: november 19th 2022 [See changelog here for an overview of updates and new features](https://github.com/fbgallet/roam-extension-find-replace/blob/main/CHANGELOG.md) 🆕__
+__Update to v.3: December 7th 2022 [See changelog here for an overview of updates and new features](https://github.com/fbgallet/roam-extension-find-replace/blob/main/CHANGELOG.md) 🆕__
 
 __💡 All the commands are available via the command palette (Cmd-Ctrl + P). Enter "Find & R..." and you will see all of them.__
 
@@ -25,6 +25,8 @@ __💡 All the commands are available via the command palette (Cmd-Ctrl + P). En
 Press `Ctrl + S` to open a search box similar to the browsers' search box usually called with Ctrl+F: the search results are instantly highlighted in the current page and and switching from one to the other automatically scrolls the display.
 
 But this search box is specially designed for Roam Research since it detects the words hidden in the collapsed blocks and expands them automatically, by checking an option. The search can also be extended to the whole workspace, linked references and pages in the sidebar.
+
+🆕 in v.3, you can now specify a logic operator if you enter multiple words: by default, the whole string is searched, but you can search each word separated by a spaces with the OR operator (at least one word) or the AND operator (all words must be present in the block, in any order). AND+ is an experimental feature, it's like AND but it includes first children.
 
 You can have a quick overview of the search results (including hidden blocks) by clicking `🔎︎` and copied in the clipboard as plain text (block references are resolved). Or you can copy the block references with '((📋))' and paste them anywhere in your graph.
 
@@ -100,7 +102,7 @@ Apply to a selection of blocks (and only the visible ones), you can bulk change:
   - the header level (1, 2 or 3)
   - the alignment of the text (right, left, center, justify), 
   - the view of the children (bullets, numbers, document),
-  - the case of the text (all as Upper case, all as lower case, capitalize the first letter of the block or capitalize the first letter of each word - excluding page references, tags, attributs and block references, of course).
+  - the case of the text (all as Upper case, all as lower case, capitalize the first letter of the block or capitalize the first letter of each word or (🆕 new in v.3) capitalize each sentence - excluding page references, tags, attributs and block references, of course).
 
 
 ## `Prepend or append content to selected blocks` command:
@@ -156,6 +158,8 @@ Auto-expand blocks in Search in page or Find & Replace doesn't works always prop
 - limits of live highlight on page feature:
 Text in code blocks are not highlighted. Likewise, if your search for strings including markdown syntax, or if your the matching string is hidden by some markdown syntax (like the link in an alias), it will not be highlighted. A counter indicate how many strings can't be highlighted. You can see them with in plain text with the `🔎︎` button. But in any case, the words will be correctly detected and replaced.
 
+- limits around the logic operators:
+The count of matching elements is not fully reliable with AND or AND+ operators. AND+ is not yet applied to the whole graph search, the algorithm must be optimized to give a result in a reasonable time.
 
 ---
 
