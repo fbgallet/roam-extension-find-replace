@@ -1,3 +1,11 @@
+## v.3 (December 7th, 2022)
+### New features:
+- Added logic operators for search: full string / OR / AND / AND+ (experimental)
+- Added Sentence capitalization in Bulk change format
+
+### Fixes:
+- search works now on daily note view (wall of DNP) and can find elements on multiple DNP
+
 ## v.2 (November 19th, 2022) MAJOR update
 ### New features:
 - Search on page, highlighting matches (replace Ctrl+f native feature of Chrome, but introduce this feature lacking in Desktop version of Roam).
