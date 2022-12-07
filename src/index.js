@@ -1657,9 +1657,9 @@ const ANDmatchInChildren = (
       let resolvedBlockAndChildContent =
         resolvedBlockContent + " " + resolvedChildContent;
       find.and.lastIndex = 0;
-      console.log(find.and);
+      // console.log(find.and);
       matchInBlockContent = find.and.test(resolvedBlockAndChildContent);
-      console.log(matchInBlockContent);
+      //  console.log(matchInBlockContent);
       if (matchInBlockContent) {
         if (expandToHighlight) updateBlock(uid, blockContent, true);
         let childMatches;

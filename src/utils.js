@@ -22,7 +22,7 @@ export function getPlainTextOfChildren(uid) {
     "[:block/uid {:block/children [:block/string]}]",
     [":block/uid", uid]
   )[":block/children"];
-  console.log(childContent);
+  //console.log(childContent);
   let content = "";
   if (childContent != undefined) {
     for (let i = 0; i < childContent.length; i++) {
@@ -228,7 +228,7 @@ export const normalizeInputRegex = function (
         };
       else toFindregexp = new RegExp(toFindStr, regPar2);
     }
-    console.log(toFindregexp);
+    //console.log(toFindregexp);
     return [toFindregexp, replacingStr, searchLogic];
   }
   return null;
@@ -377,7 +377,6 @@ export const groupMatchesByPage = function (matchArray) {
 };
 
 export const sortByPageTitle = function (array) {
-  console.log(array);
   return array
     .map((node) => {
       return {
