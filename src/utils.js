@@ -144,11 +144,16 @@ export function getPageUidByNameOrCreateIt(name) {
   return pageUid;
 }
 
-export function updateBlock(uid, content, isOpen = false) {
+export function updateBlock(uid, content, isOpen) {
   setTimeout(function () {
-    window.roamAlphaAPI.updateBlock({
-      block: { uid: uid, string: content, open: isOpen },
-    });
+    if (isOpen !== undefined)
+      window.roamAlphaAPI.updateBlock({
+        block: { uid: uid, string: content, open: isOpen },
+      });
+    else
+      window.roamAlphaAPI.updateBlock({
+        block: { uid: uid, string: content },
+      });
   }, 10);
 }
 
