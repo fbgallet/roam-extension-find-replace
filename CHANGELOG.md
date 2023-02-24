@@ -1,3 +1,11 @@
+## v.4 (February 24th, 2023)
+### Updates:
+- hotkeys can be customized for almost all commands in command palette
+
+### Fixes:
+- F&R with multi-select is now properly working
+- using placeholders ($Regex, or $1, $2) for Regex capture groups was broken
+
 ## v.3 (December 7th, 2022)
 ### New features:
 - Added logic operators for search: full string / OR / AND / AND+ (experimental)
