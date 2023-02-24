@@ -36,7 +36,7 @@ import {
   getChildrenUid,
   uidRegex,
 } from "./utils";
-import { displayForm, myDialog } from "./formDialog";
+import { displayForm } from "./formDialog";
 
 const referencesRegexStr =
   "/\\(\\([^\\)]{9}\\)\\)|#?\\[\\[[^[\\]]*\\]\\]|#[^\\s]*|.*::/";
@@ -46,7 +46,7 @@ const referencesRegexStr =
 const referencesRegex = new RegExp(referencesRegexStr, "g");
 
 const sipLabel =
-  "Find & Replace: Search in page, selection of blocks or workspace (Ctrl + s)";
+  "Find & Replace: Search in page, blocks selection or workspace (sip)";
 const frpLabel = "Find & Replace: in Page zoom or selection of blocks (frp)";
 const frwLabel =
   "Find & Replace: in Workspace (Page + Sidebar + references) (frw)";
@@ -100,6 +100,7 @@ var extractMatchesOnly = true;
 var codeBlockLimit = 150;
 
 // Other global variables
+var selectionBlue;
 var lastOperation = "";
 var changesNb = 0;
 var changesNbBackup;
@@ -520,6 +521,7 @@ const searchOnly = async function (
         if (!switchToFindAndReplace) {
           workspace = false;
           selectedBlocks = [];
+          selectionBlue = false;
           removeHighlightedNodes();
           window.removeEventListener("keydown", onKeyArrows);
         }
@@ -1024,6 +1026,7 @@ const findAndReplace = async function (
         }
         workspace = false;
         selectedBlocks = [];
+        selectionBlue = false;
         excludeDuplicate = excludeDuplicateBackup;
         removeHighlightedNodes();
         window.removeEventListener("keydown", onKeyArrows);
@@ -1113,10 +1116,31 @@ const replaceSelectedMatches = function (param, i) {
     position = matches[match.indexInBlock].index;
   // In case of nested block ref in another blockref, only the first match can be changed currently
   else position = matches[0].index;
-  let replacedContent = blockContent
-    .slice(position)
-    .replace(match.strToReplace, replace);
-  blockContent = blockContent.slice(0, position) + replacedContent;
+  let replacedContent;
+  if (
+    replace.search(/\$regex/i) == -1 &&
+    replace.search(/\$1/) == -1 &&
+    replace.search(/\$2/) == -1
+  ) {
+    replacedContent = blockContent
+      .slice(position)
+      .replace(match.strToReplace, replace);
+    blockContent = blockContent.slice(0, position) + replacedContent;
+  } else {
+    if (position != 0) {
+      replacedContent = blockContent.substring(0, position);
+    }
+    replacedContent += regexVarInsert(
+      matches[match.indexInBlock],
+      replace,
+      blockContent
+    );
+    let lastIndex = position + matches[match.indexInBlock][0].length;
+    if (lastIndex < blockContent.length) {
+      replacedContent += blockContent.substring(lastIndex);
+    }
+    blockContent = replacedContent;
+  }
   let isAnotherUid = true;
 
   if (i < length - 1) {
@@ -1194,10 +1218,14 @@ const replaceOpened = async (
     if (searchLogic == "AND") find = find.and;
   }
 
+  console.log(find);
+  console.log(replace);
+
   if (find.test(blockContent)) {
     find.lastIndex = 0;
     if (find.global) {
       let matchIterator = [...blockContent.matchAll(find)];
+      console.log(matchIterator);
       changesNb += matchIterator.length;
       if (reverse) {
         changesNb -= matchIterator.length;
@@ -1269,6 +1297,7 @@ const replaceOpened = async (
       }
     } else {
       const mFirst = blockContent.match(find);
+      console.log(mFirst);
       if (
         replace.search(/\$regex/i) == -1 &&
         replace.search(/\$1/) == -1 &&
@@ -1981,7 +2010,13 @@ const appendPrependDialog = async function () {
       ],
     ],
     onClosing: function (instance, toast, closedBy) {},
-    onClosed: function (instance, toast, closedBy) {},
+    onClosed: function (instance, toast, closedBy) {
+      if (closedBy == "esc" || closedBy == "button") {
+        selectedBlocks = [];
+        selectionBlue = false;
+        initializeGlobalVar(true);
+      }
+    },
   });
 };
 
@@ -2122,6 +2157,8 @@ const changeBlockFormatPrompt = async function () {
     onClosed: function (instance, toast, closedBy) {
       if (closedBy == "esc" || closedBy == "button") {
         selectedBlocks = [];
+        selectionBlue = false;
+        initializeGlobalVar(true);
         changesNbBackup = changesNb;
       }
     },
@@ -3097,26 +3134,27 @@ const redoPopup = async function () {
 /******************************************************************************************/
 const onKeydown = async (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key == "s") {
-    let selection = getSelection();
-    await getNodes();
-    if (selection === null) selection = "";
-    searchOnly(selection);
+    // let selection = getSelection();
+    // await getNodes();
+    // if (selection === null) selection = "";
+    // searchOnly(selection);
     e.preventDefault();
     return;
   }
 };
 
 function getSelectedNodes(selection, inCollapsed = false) {
-  let uniqueUids = [];
+  // let uniqueUids = [];
   selection.forEach((block) => {
     let inputBlock = block.querySelector(".rm-block__input");
     if (!inputBlock) return;
     let uid = inputBlock.id.slice(-9);
-    if (!uniqueUids.includes(uid)) {
-      uniqueUids.push(uid);
-      getNodesFromTree(getTreeByUid(uid), false, expandedNodesUid, inCollapsed);
-    }
+    // if (!uniqueUids.includes(uid)) {
+    // uniqueUids.push(uid);
+    getNodesFromTree(getTreeByUid(uid), false, expandedNodesUid, inCollapsed);
+    // }
   });
+  expandedNodesUid = removeDuplicateBlocks(expandedNodesUid);
 }
 
 function getCheckedNodes(checkedBlocks) {
@@ -3154,25 +3192,30 @@ function getSelection() {
       selectedBlocks = selection;
       getSelectedNodes(selectedBlocks);
       selection = null;
+      selectionBlue = true;
     }
     if (startUid == undefined && checkSelection.length != 0) {
       selectedBlocks = checkSelection;
       getCheckedNodes(checkSelection);
       selection = null;
+      selectionBlue = false;
     }
   }
+  // console.log(expandedNodesUid);
   return selection;
 }
 
 async function getNodes() {
-  initializeNodesArrays();
-  if (selectedBlocks.length != 0 && !workspace) {
-    if (selectedBlocks[0].length == 9)
-      getCheckedNodes(selectedBlocks); // checked blocks with ctrl + m
-    else getSelectedNodes(selectedBlocks); // classic multiselect
-  } else {
-    if (workspace) await getWorkspaceNodes();
-    else await getNodesInPage();
+  if (!selectionBlue) {
+    getSelection();
+    if (selectedBlocks.length != 0 && !workspace) {
+      if (selectedBlocks[0].length == 9)
+        getCheckedNodes(selectedBlocks); // checked blocks with ctrl + m
+      else getSelectedNodes(selectedBlocks); // classic multiselect
+    } else {
+      if (workspace) await getWorkspaceNodes();
+      else await getNodesInPage();
+    }
   }
   if (excludeDuplicate) {
     expandedNodesUid = removeDuplicateBlocks(expandedNodesUid);
@@ -3728,26 +3771,27 @@ export default {
 
     window.addEventListener("keydown", onKeydown);
 
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: sipLabel,
       callback: async () => {
         let selection = getSelection();
         if (selection === null) selection = "";
-        await getNodes();
+        //await getNodes();
         searchOnly(selection);
       },
+      "default-hotkey": "ctrl-s",
     });
 
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: frpLabel,
       callback: async () => {
         let selection = getSelection();
         if (selection === null) selection = "";
-        await getNodes();
+        //await getNodes();
         findAndReplace("Find & Replace in page or workspace", selection);
       },
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: frwLabel,
       callback: async () => {
         workspace = true;
@@ -3763,15 +3807,20 @@ export default {
         );
       },
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: formLabel,
-      callback: async () => {
+      callback: () => {
         getSelection();
-        if (expandedNodesUid.length == 0) return;
+        if (expandedNodesUid.length == 0) {
+          infoToast(
+            "Some blocks have to be selected to apply bulk change format."
+          );
+          return;
+        }
         changeBlockFormatPrompt(formLabel);
       },
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: " + swgLabel,
       callback: async () => {
         wholeGraph = true;
@@ -3779,7 +3828,7 @@ export default {
       },
     });
     //    if (allowWhole) loadWholeGraphCommand();
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: frgLabel,
       callback: async () => {
         wholeGraph = true;
@@ -3789,7 +3838,7 @@ export default {
         );
       },
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: " + ptobLabel,
       callback: async () => {
         wholeGraph = true;
@@ -3802,7 +3851,7 @@ export default {
         await findAndReplaceInWholeGraph(ptobLabel, "page to block", mention);
       },
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: " + btopLabel,
       callback: async () => {
         wholeGraph = true;
@@ -3821,18 +3870,21 @@ export default {
         await undoLastBulkOperation();
       },
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: Redo last operation",
       callback: async () => {
         await redoPopup();
       },
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: "Prepend or append content to selected blocks",
       callback: async () => {
         isPrepending = true;
         getSelection();
-        if (expandedNodesUid.length == 0) return;
+        if (expandedNodesUid.length == 0) {
+          ("Some blocks have to be selected to apply bulk prepend or append.");
+          return;
+        }
         appendPrependDialog();
         isPrepending = false;
       },
@@ -3850,7 +3902,7 @@ export default {
       },
     });
 
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: Extract highlights in selection or page",
       callback: async () => {
         await getNodes();
@@ -3941,35 +3993,35 @@ export default {
     window.removeEventListener("keydown", onKeydown);
     window.removeEventListener("keydown", onKeyArrows);
 
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({
-      label: "Search in page",
-    });
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frpLabel });
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frwLabel });
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frgLabel });
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: formLabel });
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({
-      label: "Find & Replace: " + swgLabel,
-    });
+    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
+    //   label: "Search in page",
+    // });
+    // window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frpLabel });
+    // window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frwLabel });
+    // window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frgLabel });
+    // window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: formLabel });
+    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
+    //   label: "Find & Replace: " + swgLabel,
+    // });
     window.roamAlphaAPI.ui.commandPalette.removeCommand({
       label: "Find & Replace: Undo last operation",
     });
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({
-      label: "Find & Replace: Redo last operation",
-    });
+    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
+    //   label: "Find & Replace: Redo last operation",
+    // });
     window.roamAlphaAPI.ui.commandPalette.removeCommand({
       label: "Find & Replace: Insert last changed blocks (references)",
     });
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({
-      label: "Prepend or append content to selected blocks",
-    });
+    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
+    //   label: "Prepend or append content to selected blocks",
+    // });
 
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({
-      label: "Find & Replace: " + ptobLabel,
-    });
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({
-      label: "Find & Replace: " + btopLabel,
-    });
+    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
+    //   label: "Find & Replace: " + ptobLabel,
+    // });
+    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
+    //   label: "Find & Replace: " + btopLabel,
+    // });
     window.roamAlphaAPI.ui.commandPalette.removeCommand({
       label: "Find & Replace: Extract highlights in selection or page",
     });
