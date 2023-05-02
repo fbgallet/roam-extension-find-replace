@@ -133,11 +133,11 @@ export function getPageNameByPageUid(uid) {
   else return "undefined";
 }
 
-export function getPageUidByNameOrCreateIt(name) {
+export async function getPageUidByNameOrCreateIt(name) {
   let pageUid = getPageUidByPageName(name);
   if (pageUid === undefined) {
     pageUid = window.roamAlphaAPI.util.generateUID();
-    window.roamAlphaAPI.createPage({
+    await window.roamAlphaAPI.createPage({
       page: { title: name, uid: pageUid },
     });
   }
@@ -171,7 +171,7 @@ export function simulateClick(el) {
   el.dispatchEvent(new MouseEvent("click", options));
 }
 
-export const createBlockOnDNP = (order = "last", content = "") => {
+export const createBlockOnDNP = async (order = "last", content = "") => {
   let blockUid = window.roamAlphaAPI.util.generateUID();
   let dnp = window.roamAlphaAPI.util.dateToPageUid(new Date());
   window.roamAlphaAPI.createBlock({
@@ -275,12 +275,14 @@ export const getMatchesNbInBlock = (array, uid) => {
 export const moveChildBlocks = (sourceUid, targetUid) => {
   let tree = getTreeByUid(sourceUid);
 
-  if (tree.children) {
-    let children = tree.children.sort((a, b) => a.order - b.order);
+  if (tree[":block/children"]) {
+    let children = tree[":block/children"]
+      .sort((a, b) => a[":block/order"] - b[":block/order"])
+      .map((child) => child[":block/uid"]);
     for (let i = 0; i < children.length; i++) {
       window.roamAlphaAPI.moveBlock({
         location: setLocation(targetUid, i),
-        block: { uid: children[i].uid },
+        block: { uid: children[i] },
       });
     }
   }

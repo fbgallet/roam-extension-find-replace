@@ -1218,8 +1218,8 @@ const replaceOpened = async (
     if (searchLogic == "AND") find = find.and;
   }
 
-  console.log(find);
-  console.log(replace);
+  // console.log(find);
+  // console.log(replace);
 
   if (find.test(blockContent)) {
     find.lastIndex = 0;
@@ -2374,6 +2374,7 @@ const findAndReplaceInWholeGraph = async function (
         "change",
         async function (instance, toast, input, e) {
           moveContent = input.checked;
+          console.log(moveContent);
         },
         false,
       ],
@@ -2474,7 +2475,7 @@ const findAndReplaceInWholeGraph = async function (
       ],
       [
         "<button style='color:red; " + hideButton + "'><b>Confirm</b></button>",
-        function (instance, toast, button, e, inputs) {
+        async function (instance, toast, button, e, inputs) {
           let thisToast = { instance: instance, toast: toast };
           let promptParameters = normalizeInputRegex(
             findInput,
@@ -2519,7 +2520,7 @@ const findAndReplaceInWholeGraph = async function (
                     replaceInput == "" ||
                     replaceInput.toLocaleLowerCase() == "dnp"
                   ) {
-                    replaceInput = createBlockOnDNP();
+                    replaceInput = await createBlockOnDNP();
                     infoToast(
                       "The converted block will be created as the last block of Today's page."
                     );
@@ -2750,8 +2751,9 @@ const warningPopupWholeGraph = (
       title = "Convert a page in a block ";
       findRegex = getPageMentionRegex(find);
   }
+  console.log(findRegex, replace, moveContent);
   wholeGraphProcessing([findRegex, replace], false);
-  if (mode === "block to page") changesNb++;
+  if (mode === "block to page" || mode === "page to block") changesNb++;
   if (changesNb === 0) {
     errorToast(
       "0 matching block in the graph, try again with another block or page reference"
@@ -2881,7 +2883,11 @@ const wholeGraphProcessing = (
 /*	Page <=> Block conversion
 /******************************************************************************************/
 
-const changeBlockToPage = (blockUid, pageName = "", moveContent = false) => {
+const changeBlockToPage = async (
+  blockUid,
+  pageName = "",
+  moveContent = false
+) => {
   let blockMention = normalizeMention(blockUid, "block");
   if (blockMention === null) {
     return null;
@@ -2903,7 +2909,7 @@ const changeBlockToPage = (blockUid, pageName = "", moveContent = false) => {
 
   let promptParameters = normalizeInputRegex(blockMention, pageMention);
   wholeGraphProcessing(promptParameters, true);
-  let pageUid = getPageUidByNameOrCreateIt(pageName);
+  let pageUid = await getPageUidByNameOrCreateIt(pageName);
 
   if (moveContent) moveChildBlocks(blockUid, pageUid);
   updateBlock(blockUid, pageMention);
