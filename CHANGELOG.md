@@ -1,3 +1,8 @@
+## v.5
+### Fixes:
+- Block => Page conversion was not copying the block children to the new page
+- Page => Block conversion was broken
+
 ## v.4 (February 24th, 2023)
 ### Updates:
 - hotkeys can be customized for almost all commands in command palette
