@@ -1,3 +1,8 @@
+## v.6 (July 30th, 2023)
+### Fixes:
+- Search in Page, in not zoomed page, was broken
+- text in quote AND in markdown formatting was not highlighted when searched
+
 ## v.5
 ### Fixes:
 - Block => Page conversion was not copying the block children to the new page
