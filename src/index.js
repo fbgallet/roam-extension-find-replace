@@ -1774,6 +1774,8 @@ const highlightInHtmlElement = (el, find, replace, uid, bref = null) => {
   if (el.innerHTML.includes("fr-match") == false) {
     let nodes = el.firstChild.childNodes;
     if (nodes.length != 0) {
+      if (nodes[0].parentNode.nodeName == "BLOCKQUOTE")
+        nodes = nodes[0].childNodes;
       for (let j = 0; j < nodes.length; j++) {
         highlightString(nodes[j], find, replace, uid, bref);
       }
@@ -1793,6 +1795,7 @@ const highlightString = (
     node.parentNode.replaceChild(foundChild, node);
   } else {
     let className = node.className;
+    //console.log(className);
     switch (className) {
       case "rm-bold":
       case "rm-highlight":
@@ -3359,11 +3362,12 @@ function getNodesFromTree(
   let children = tree[":block/children"];
   let isOpen = tree[":block/open"];
   let string = tree[":block/string"];
+  let isPage = ":block/order" in tree ? false : true;
   let refs =
     tree[":block/refs"] == undefined
       ? []
       : tree[":block/refs"].map((a) => a[":block/uid"]);
-  if (string != undefined) {
+  if (!isPage) {
     attr = {
       string: string,
       open: isOpen,
