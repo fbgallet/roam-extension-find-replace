@@ -3982,6 +3982,7 @@ export default {
 
     iziToast.settings({
       theme: "dark",
+      class: "fr-toast",
       color: iziToastColor,
       position: iziToastPosition,
       maxWidth: 375,

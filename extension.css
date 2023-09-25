@@ -1,14 +1,14 @@
-label.iziToast-inputs-child,
+.fr-toast label.iziToast-inputs-child,
 .iziToast > .iziToast-body .iziToast-inputs > select {
   font-size: 90%;
   font-weight: 100;
   color: #ffffffb3 !important;
 }
-label.iziToast-inputs-child {
+.fr-toast label.iziToast-inputs-child {
   margin: 5px 5px 5px 3px;
 }
 
-.iziToast
+.fr-toast
   > .iziToast-body
   .iziToast-inputs
   > input:not([type="checkbox"]):not([type="radio"]) {
@@ -16,11 +16,11 @@ label.iziToast-inputs-child {
   margin-bottom: 5px;
 }
 
-.iziToast-body code {
+.fr-toast .iziToast-body code {
   font-size: 12px;
 }
 
-input[type="checkbox"].iziToast-inputs-child {
+.fr-toast input[type="checkbox"].iziToast-inputs-child {
   margin: 0 10px 0 0;
   padding-top: 5px;
   min-width: 10px !important;
@@ -30,12 +30,12 @@ input[type="checkbox"].iziToast-inputs-child {
   filter: brightness(85%);
 }
 
-.iziToast-inputs-child > option {
+.fr-toast .iziToast-inputs-child > option {
   background: #262626ff;
   color: #ffffffb3;
 }
 
-.iziToast-message {
+.fr-toast .iziToast-message {
   padding: 5px 0 5px 0 !important;
 }
 
