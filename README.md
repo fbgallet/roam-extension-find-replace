@@ -22,11 +22,11 @@ __💡 All the commands are available via the command palette (Cmd-Ctrl + P). En
 
 ![F R - Search in page](https://user-images.githubusercontent.com/74436347/202797471-b43fd997-a8f3-4896-af20-29948961a7ed.png)
 
-Press `Ctrl + S` to open a search box similar to the browsers' search box usually called with Ctrl+F: the search results are instantly highlighted in the current page and and switching from one to the other automatically scrolls the display.
+Press `Ctrl + S` to open a search box similar to the browsers' search box usually called with Ctrl+F: the search results are instantly highlighted in the current page and switching from one to the other automatically scrolls the display.
 
 But this search box is specially designed for Roam Research since it detects the words hidden in the collapsed blocks and expands them automatically, by checking an option. The search can also be extended to the whole workspace, linked references and pages in the sidebar.
 
-🆕 in v.3, you can now specify a logic operator if you enter multiple words: by default, the whole string is searched, but you can search each word separated by a spaces with the OR operator (at least one word) or the AND operator (all words must be present in the block, in any order). AND+ is an experimental feature, it's like AND but it includes first children.
+🆕 in v.3, you can now specify a logic operator if you enter multiple words: by default, the whole string is searched, but you can search each word separated by a spaces with the OR operator (at least one word) or the AND operator (all words must be present in the block, in any order). AND+ is an experimental feature, it's like AND but it includes first level children blocks.
 
 You can have a quick overview of the search results (including hidden blocks) by clicking `🔎︎` and copied in the clipboard as plain text (block references are resolved). Or you can copy the block references with '((📋))' and paste them anywhere in your graph.
 
@@ -115,7 +115,7 @@ Insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (
 ## Full Regex support
 Regular Expressions (often abbreviated to regex) are a powerful system to express and match any form of character pattern you can imagine. The general idea is that a given regex allows to express several sequences of characters. For example, we have seen above that `/Words?|words/` allows to identify 'Word', 'Words' and 'words', but not 'word' (that we don't want to change). So with a single expression in the search field, you can find and modify different words in your graph simultaneously.
 
-The syntax of regular expressions is very strict. Understanding their the science behind them is not indispensable (it is a pure mathematical formalism), but you have to learn the syntax and experiment with it before using it in Find & Replace (you can [for example, learn and test your formulas here](https://regexr.com/)), unless you restrict yourself to reproducing a few simple examples like the ones below. Be very cautious because their effects is not always easy to grasp and can have a dangerous impact on your data. Don't use regex if you don't know what you do.
+The syntax of regular expressions is very strict. Understanding the science behind them is not indispensable (it is a pure mathematical formalism), but you have to learn the syntax and experiment with it before using it in Find & Replace (you can [for example, learn and test your formulas here](https://regexr.com/)), unless you restrict yourself to reproducing a few simple examples like the ones below. Be very cautious because their effects is not always easy to grasp and can have a dangerous impact on your data. Don't use regex if you don't know what you do.
 
 The most accessible feature is using the variable `$RegEx` as a placeholder for formating the replacement of matching strings:
 in Replace field, you can insert `$RegEx` in the replacing string. E.g., to bold all matching strings, enter: `**$RegEx**`
@@ -131,7 +131,7 @@ You can click on `?` button in Find & Replace dialog box to see these examples:
 Regex have to be written between `/`slashes`/` with simple `\` backslash before special character to escape. Flag for global search (/g) is always set by default, you doesn't need to mention it.
 
 __In Find field:__
-  - /words?/`, matches all 'word' (singular) or 'words' (plural) occurences, 
+  - `/words?/`, matches all 'word' (singular) or 'words' (plural) occurences, 
   - `/sk(y|ies)/`, matches all 'sky' (singular) or 'skies' (plural) occurences, 
   - `/cheese|cake/`, matches all 'cheese' OR 'cake',
   - `/[A-Z]\w+/`, matches all words beginning with a capital letter,
@@ -156,7 +156,7 @@ __In Replace field:__
 Auto-expand blocks in Search in page or Find & Replace doesn't works always properly. The API command to expand blocks doesn't seem to be 100% reliable when there is an important amount of indented blocks to open. You may have to click on refresh button `↻` until the counter indicates that there are no more words in a folded blocks. Anyway it's only a matter of block display: all matching words will be replaced if you click on 'Replace all'.
 
 - limits of live highlight on page feature:
-Text in code blocks are not highlighted. Likewise, if your search for strings including markdown syntax, or if your the matching string is hidden by some markdown syntax (like the link in an alias), it will not be highlighted. A counter indicate how many strings can't be highlighted. You can see them with in plain text with the `🔎︎` button. But in any case, the words will be correctly detected and replaced.
+Text in code blocks are not highlighted. Likewise, if your search for strings including markdown syntax, or if the matching string is hidden by some markdown syntax (like the link in an alias), it will not be highlighted. A counter indicate how many strings can't be highlighted. You can see them with in plain text with the `🔎︎` button. But in any case, the words will be correctly detected and replaced.
 
 - limits around the logic operators:
 The count of matching elements is not fully reliable with AND or AND+ operators. AND+ is not yet applied to the whole graph search, the algorithm must be optimized to give a result in a reasonable time.
