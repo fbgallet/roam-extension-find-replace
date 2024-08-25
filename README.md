@@ -4,7 +4,7 @@
 
 **Way more than a simple Find & Replace, a versatile tool for search and bulk operations:**
 
-\_\_🆕 in v.8: Bulk change of [[page names]]
+### 🆕 in v.8: Bulk change of [[page names]]
 
 - **[Search in page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-page) with an instant highlighting**
 - **[Search in graph](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-the-whole-graph) with plain text or block references extraction**
@@ -13,7 +13,7 @@
 - **[Block <=> Page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-block--page-conversion) conversion, replacing in bulk their references.**
 - **[Bulk change format](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) of selected blocks (header, alignment, view, case)**
 - **[Bulk append/prepend](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) strings, ie. at the beginning or/and at the end of a set of selected blocks.**
-- **🆕 [Bulk change of page names]() or simple pages search, supporting Regex.**
+- **🆕 [Bulk change of page names](https://github.com/fbgallet/roam-extension-find-replace?tab=readme-ov-file#-bulk-change-of-page-names) or simple pages search, supporting Regex.**
 - **[Full regular expressions support](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#full-regex-support)**
 
 [See changelog here for an overview of updates and new features](https://github.com/fbgallet/roam-extension-find-replace/blob/main/CHANGELOG.md) \_\_
@@ -112,6 +112,8 @@ Apply to a selection of blocks (and only the visible ones), you can bulk change:
 Insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (append) of selected blocks. Only expanded blocks are concerned.
 
 ## 🆕 `Bulk change of [[page names]]`
+
+![image](https://github.com/user-attachments/assets/2a37e734-3f43-425a-bff8-065c37008ac4)
 
 Enter the pattern to change in multiple page names (it can be a simple string as `Project`) and the replacing string. Before any change in your graph, you will see the list of page names containing this pattern and have the possibility to select or unselect page names to update. You can easily copy this page list to the clipboard or display it in the right sidebar.
 
