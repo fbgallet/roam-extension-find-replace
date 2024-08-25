@@ -7,11 +7,8 @@ const regexPatternRegex = /^\/(.*)\/([^\/]*)$/;
 
 export function getPagesNamesMatchingRegex(regexStr) {
   let wordOnly = false;
-  console.log("regexStr :>> ", regexStr);
   const splittedRegex = regexStr.toString().match(regexPatternRegex);
-  console.log("splittedRegex :>> ", splittedRegex);
   if (splittedRegex[1].includes("\\b")) {
-    console.log("WORD ONLY :>> ");
     wordOnly = true;
   }
   let dataLogRegexStr = removeEscapeCharacters(splittedRegex[1]);
@@ -19,7 +16,6 @@ export function getPagesNamesMatchingRegex(regexStr) {
     splittedRegex.length > 2 && splittedRegex[2].includes("i")
       ? "(?i)" + dataLogRegexStr
       : dataLogRegexStr;
-  console.log("regexStr :>> ", dataLogRegexStr);
   let result = window.roamAlphaAPI.q(`[:find
     (pull ?node [:block/string :node/title :block/uid])
   :where
