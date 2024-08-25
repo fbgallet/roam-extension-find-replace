@@ -58,3 +58,48 @@ button.add-to-sidebar:hover {
   box-shadow: 0px 2px 4px -1px #000000, 0px 0px 4px #dfdfdf;
   filter: brightness(70%);
 }
+
+/* Dialogs */
+
+.bp3-dialog:has(.block-list),
+.bp3-dialog:has(.page-list) {
+  position: absolute;
+  width: 90%;
+  max-width: 750px;
+  max-height: 90%;
+}
+
+.bp3-dialog .bp3-dialog-body:has(.block-list),
+.bp3-dialog .bp3-dialog-body:has(.page-list) {
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: inherit;
+}
+.bp3-dialog .bp3-dialog-body:has(.page-list) {
+  padding-left: 20px;
+}
+.bp3-dialog .page-list {
+  background: inherit;
+}
+
+.bp3-dialog .bp3-dialog-body:has(.block-list) ul {
+  padding-left: 20px;
+}
+
+.bp3-dialog .page-list input[type="checkbox"] {
+  transform: translateY(1px);
+  margin-right: 10px;
+}
+
+.bp3-dialog .page-list > div:first-child {
+  position: fixed;
+  background: inherit;
+}
+.bp3-dialog .page-list > ul {
+  padding-left: 0px;
+  list-style-type: none;
+  padding-top: 30px;
+}
+.bp3-dialog .page-list > ul > li {
+  padding-bottom: 5px;
+}

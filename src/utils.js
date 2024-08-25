@@ -1,7 +1,37 @@
 import getEditTime from "roamjs-components/queries/getEditTimeByBlockUid";
+import { regexVarInsert } from ".";
 
 export const uidRegex = /\(\([^\)]{9}\)\)/g;
 const pageRegex = /\[\[.*\]\]/g; // very simplified...
+const regexPatternRegex = /^\/(.*)\/([^\/]*)$/;
+
+export function getPagesNamesMatchingRegex(regexStr) {
+  let wordOnly = false;
+  console.log("regexStr :>> ", regexStr);
+  const splittedRegex = regexStr.toString().match(regexPatternRegex);
+  console.log("splittedRegex :>> ", splittedRegex);
+  if (splittedRegex[1].includes("\\b")) {
+    console.log("WORD ONLY :>> ");
+    wordOnly = true;
+  }
+  let dataLogRegexStr = removeEscapeCharacters(splittedRegex[1]);
+  dataLogRegexStr =
+    splittedRegex.length > 2 && splittedRegex[2].includes("i")
+      ? "(?i)" + dataLogRegexStr
+      : dataLogRegexStr;
+  console.log("regexStr :>> ", dataLogRegexStr);
+  let result = window.roamAlphaAPI.q(`[:find
+    (pull ?node [:block/string :node/title :block/uid])
+  :where
+    [(re-pattern "${dataLogRegexStr}") ?regex]
+    [?node :node/title ?node-Title]
+    [(re-find ?regex ?node-Title)]
+  ]`);
+  if (wordOnly) {
+    result = result.filter((elt) => regexStr.test(elt[0].title));
+  }
+  return result;
+}
 
 export function getTreeByUid(uid) {
   if (uid) {
@@ -186,24 +216,25 @@ export const createBlockOnDNP = async (order = "last", content = "") => {
 
 export const normalizeInputRegex = function (
   toFindStr,
-  replacingStr,
+  strToReplace,
   caseNotSensitive = false,
   wordOnly = false,
   searchLogic = "",
-  expandToHighlight = false
+  expandToHighlight = false,
+  isGlobal = true
 ) {
   let toFindregexp;
-  if (toFindStr != null && replacingStr != null) {
+  if (toFindStr != null && strToReplace != null) {
     let regParts = toFindStr.match(/^\/(.*?)\/([gimsuy]*)$/);
     if (regParts) {
       if (!regParts[2].includes("i") && caseNotSensitive) {
         regParts[2] += "i";
       }
-      if (!regParts[2].includes("g")) regParts[2] += "g";
+      if (!regParts[2].includes("g") && isGlobal) regParts[2] += "g";
       toFindregexp = new RegExp(regParts[1], regParts[2]);
     } else {
       toFindStr = toFindStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      let regPar2 = "g";
+      let regPar2 = isGlobal ? "g" : "";
       if (caseNotSensitive) {
         regPar2 += "i";
       }
@@ -234,7 +265,7 @@ export const normalizeInputRegex = function (
       else toFindregexp = new RegExp(toFindStr, regPar2);
     }
     //console.log(toFindregexp);
-    return [toFindregexp, replacingStr, searchLogic];
+    return [toFindregexp, strToReplace, searchLogic];
   }
   return null;
 };
@@ -425,4 +456,65 @@ export const resolveReferences = (content, uidsArray) => {
 
 export const isRegex = (string) => {
   return string.indexOf("/") == 0 && string.lastIndexOf("/") != 0;
+};
+
+const removeEscapeCharacters = (str) => {
+  return str.replace(/\\[bfnrt'"]|\\/g, "");
+};
+
+export const replaceSubstringOrCaptureGroup = (
+  str,
+  toReplaceRegex,
+  replacingStr
+) => {
+  let strToReplace, result;
+  const regexSplit = toReplaceRegex.toString().match(regexPatternRegex);
+  const regex = new RegExp(
+    regexSplit[1],
+    regexSplit && regexSplit.length > 2 && regexSplit[2]
+  );
+  const matchingStr = str.match(regex);
+  if (
+    replacingStr.search(/\$regex/i) == -1 &&
+    replacingStr.search(/\$1/) == -1 &&
+    replacingStr.search(/\$2/) == -1
+  ) {
+    if (matchingStr && matchingStr.length > 1) {
+      // has a capture group
+      replacingStr = matchingStr[0].replace(matchingStr[1], replacingStr);
+      strToReplace = matchingStr[0];
+    } else if (matchingStr && matchingStr.length === 1)
+      strToReplace = matchingStr[0];
+    result = str.replace(strToReplace, replacingStr);
+  } else result = replaceGroupPlaceholders(str, matchingStr, replacingStr);
+  return result;
+};
+
+const replaceGroupPlaceholders = (str, matchingStr, replacingStr) => {
+  let stringArray = [];
+  let lastIndex = 0;
+  let reverse = false;
+  if (matchingStr.index != 0) {
+    stringArray.push(str.substring(lastIndex, matchingStr.index));
+  }
+  if (!reverse)
+    stringArray.push(regexVarInsert(matchingStr, replacingStr, str));
+  else {
+    let last = stringArray.length - 1;
+    stringArray[last] = regexVarInsert([stringArray[last]], replacingStr, str);
+    stringArray.push(
+      str.substring(
+        matchingStr.index,
+        matchingStr.index + matchingStr[0].length
+      )
+    );
+  }
+  lastIndex = matchingStr.index + matchingStr[0].length;
+
+  if (lastIndex < str.length - 1) {
+    let end = str.substring(lastIndex);
+    if (!reverse) stringArray.push(end);
+    else stringArray.push(regexVarInsert([end], replacingStr, str));
+  }
+  return stringArray.join("");
 };
