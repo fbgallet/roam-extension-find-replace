@@ -451,7 +451,7 @@ const searchOnly = async function (
           let changesNbBackup = changesNb;
           let matchArrayBackup = matchArray;
           await getFullMatchArrayInPage(promptParameters);
-          console.log("matchArray before copy :>> ", matchArray);
+
           copyMatchingUidsToClipboard(
             matchArray,
             searchString,
@@ -525,7 +525,7 @@ const searchOnly = async function (
         if (!switchToFindAndReplace) {
           workspace = false;
           selectedBlocks = [];
-          selectionBlue = false;
+          //selectionBlue = false;
           removeHighlightedNodes();
           window.removeEventListener("keydown", onKeyArrows);
         }
@@ -1030,7 +1030,7 @@ const findAndReplace = async function (
         }
         workspace = false;
         selectedBlocks = [];
-        selectionBlue = false;
+
         excludeDuplicate = excludeDuplicateBackup;
         removeHighlightedNodes();
         window.removeEventListener("keydown", onKeyArrows);
@@ -1064,7 +1064,7 @@ const initializeGlobalVar = (close) => {
   matchingHidden = 0;
   matchArray.length = 0;
   matchingStringsArray.length = 0;
-  selectionBlue = false;
+  // selectionBlue = false;
 };
 
 const displayMatchCountInTitle = function (toast) {
@@ -1492,6 +1492,7 @@ const actualizeHighlights = (
             notExpandedNodesUid = [];
           }
           setTimeout(() => {
+            console.log("selectionBlue before getNodes:>> ", selectionBlue);
             getNodes();
             highlightCurrentSearch(promptParameters, expandToHighlight);
           }, addedTimeout);
@@ -2468,7 +2469,7 @@ const findAndReplaceInWholeGraph = async function (
               title = title.replace("blocks", "page names");
             if (matchArray.length > 0)
               if (matchArray.length < 200)
-                displayChangedBlocks(true, title, mode);
+                displayChangedBlocks(true, title, mode, false);
               else {
                 errorToast(
                   "More than 200 results, narrow down your search! Click on 🔎︎ to see the list in plain text."
@@ -3259,9 +3260,10 @@ const undoPopup = async function (
           displayChangedBlocks(
             false,
             "",
-            (lastOperation = "Find and Replace page names"
+            lastOperation === "Find and Replace page names"
               ? "replace page names"
-              : "")
+              : "",
+            true
           );
           instance.hide({ transitionOut: "fadeOut" }, toast, "button");
         },
@@ -3353,6 +3355,51 @@ const redoPopup = async function () {
 };
 
 /******************************************************************************************      
+/*	Extracting data
+/******************************************************************************************/
+
+async function extractContentFromPageOrSelectionByRegex(strRegex, title) {
+  initializeGlobalVar();
+  getSelection();
+  await getNodes();
+
+  let promptParameters = normalizeInputRegex(strRegex, "$1");
+  promptParameters.push(false);
+  let varBackup = extractMatchesOnly;
+  extractMatchesOnly = true;
+  selectedNodesProcessing(
+    expandedNodesUid,
+    promptParameters,
+    replaceOpened,
+    false
+  );
+
+  matchingStringsArray.forEach((match) => {
+    match.content = match.replace;
+  });
+
+  copyMatchingUidsToClipboard(
+    matchingStringsArray,
+    `extract ${title}`,
+    false,
+    false,
+    "",
+    "page",
+    true,
+    `${title} extracted`
+  );
+  infoToast(
+    changesNb +
+      ` ${title} copied in the clipboard. Paste them anywhere in your graph!`
+  );
+
+  displayChangedBlocks(true, `Extracted ${title} on `, "only matching");
+  extractMatchesOnly = varBackup;
+  initializeNodesArrays();
+}
+//
+
+/******************************************************************************************      
 /*	Generic functions to get the blocks to process
 /******************************************************************************************/
 const onKeydown = async (e) => {
@@ -3377,6 +3424,7 @@ function getSelectedNodes(selection, inCollapsed = false) {
     getNodesFromTree(getTreeByUid(uid), false, expandedNodesUid, inCollapsed);
     // }
   });
+
   expandedNodesUid = removeDuplicateBlocks(expandedNodesUid);
 }
 
@@ -3392,16 +3440,14 @@ function getCheckedNodes(checkedBlocks) {
 
 function getSelection() {
   initializeNodesArrays();
+  selectionBlue = false;
   let startUid = window.roamAlphaAPI.ui.getFocusedBlock()?.["block-uid"];
   let selection = document.querySelectorAll(".block-highlight-blue");
+
   let checkSelection = roamAlphaAPI.ui.individualMultiselect.getSelectedUids();
-  if (selection.length == 0) selection = null;
-  if (
-    startUid != undefined ||
-    selection != null ||
-    checkSelection.length != 0
-  ) {
-    if (startUid != undefined) {
+  if (!selection.length) selection = null;
+  if (startUid || selection || checkSelection.length) {
+    if (startUid) {
       let start = document.activeElement.selectionStart;
       let end = document.activeElement.selectionEnd;
       if (start != end)
@@ -3411,13 +3457,15 @@ function getSelection() {
     setTimeout(() => {
       simulateClick(document.body);
     }, 50);
-    if (startUid == undefined && selection != null) {
+    if (!startUid && selection) {
+      console.log("Selection !");
+
       selectedBlocks = selection;
       getSelectedNodes(selectedBlocks);
       selection = null;
       selectionBlue = true;
     }
-    if (startUid == undefined && checkSelection.length != 0) {
+    if (!startUid && checkSelection.length) {
       selectedBlocks = checkSelection;
       getCheckedNodes(checkSelection);
       selection = null;
@@ -3683,7 +3731,7 @@ async function copyMatchingUidsToClipboard(
     }
   }
   let stringToPaste = title + "\n" + displayArray.join("\n");
-  console.log("stringToPaste :>> ", stringToPaste);
+
   navigator.clipboard.writeText(stringToPaste);
 }
 
@@ -3740,14 +3788,16 @@ function insertChangedBlocks(startUid, blocksArray, title, mode, isChanged) {
       block: {
         uid: blockUid,
         string:
-          mode !== "replace page names"
-            ? embStr1 + "((" + block.uid + "))" + embStr2
-            : "[[" +
+          mode === "replace page names"
+            ? "[[" +
               (isChanged ? getPageTitleByPageUid(block.uid) : block.title) +
-              "]]",
+              "]]"
+            : mode === "only matching"
+            ? block.content + ` [*](((${block.uid})))`
+            : embStr1 + "((" + block.uid + "))" + embStr2,
       },
     });
-    if (displayBefore && isChanged)
+    if (displayBefore && isChanged && mode !== "only matching")
       window.roamAlphaAPI.createBlock({
         location: { "parent-uid": blockUid, order: 0 },
         block: {
@@ -3761,7 +3811,7 @@ function insertChangedBlocks(startUid, blocksArray, title, mode, isChanged) {
   return parentUid;
 }
 
-function displayChangedBlocks(onlySearch = false, title = "", mode) {
+function displayChangedBlocks(onlySearch = false, title = "", mode, isChanged) {
   let pageUid, parentUid;
   pageUid = getExtensionPageUidOrCreateIt();
   let timestamp = getNowDateAndTime();
@@ -3772,13 +3822,17 @@ function displayChangedBlocks(onlySearch = false, title = "", mode) {
     array = modifiedBlocksCopy;
   } else {
     title += timestamp;
-    // if (extractMatchesOnly && isRegex) array = matchingStringsArray;
-    array = matchArray;
+    if (
+      extractMatchesOnly &&
+      (isRegex || title.toLowerCase().includes("extract"))
+    )
+      array = matchingStringsArray;
+    else array = matchArray;
   }
-  console.log("array :>> ", array);
+
   if (matchesSortedBy === "page") array = sortByPageTitle(array);
   else if (matchesSortedBy === "date") array = sortByEditTime(array);
-  parentUid = insertChangedBlocks(pageUid, array, title, false);
+  parentUid = insertChangedBlocks(pageUid, array, title, mode, isChanged);
   window.roamAlphaAPI.ui.rightSidebar.addWindow({
     window: { type: "block", "block-uid": parentUid },
   });
@@ -4019,7 +4073,7 @@ export default {
 
     extensionAPI.ui.commandPalette.addCommand({
       label: sipLabel,
-      callback: async () => {
+      callback: () => {
         let selection = getSelection();
         if (selection === null) selection = "";
         //await getNodes();
@@ -4030,7 +4084,7 @@ export default {
 
     extensionAPI.ui.commandPalette.addCommand({
       label: frpLabel,
-      callback: async () => {
+      callback: () => {
         let selection = getSelection();
         if (selection === null) selection = "";
         //await getNodes();
@@ -4134,7 +4188,7 @@ export default {
     });
     extensionAPI.ui.commandPalette.addCommand({
       label: "Prepend or append content to selected blocks",
-      callback: async () => {
+      callback: () => {
         isPrepending = true;
         getSelection();
         if (expandedNodesUid.length == 0) {
@@ -4161,43 +4215,20 @@ export default {
     extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: Extract highlights in selection or page",
       callback: async () => {
-        initializeGlobalVar();
-        await getNodes();
-        console.log("expandedNodesUid :>> ", expandedNodesUid);
-        let promptParameters = normalizeInputRegex(
+        await extractContentFromPageOrSelectionByRegex(
           `/\\^\\^([^\\^]*)\\^\\^/g`,
-          "$1"
+          "highlighted text"
         );
-        promptParameters.push(false);
-        let varBackup = extractMatchesOnly;
-        extractMatchesOnly = true;
-        selectedNodesProcessing(
-          expandedNodesUid,
-          promptParameters,
-          replaceOpened,
-          false
+      },
+    });
+
+    extensionAPI.ui.commandPalette.addCommand({
+      label: "Find & Replace: Extract bold text in selection or page",
+      callback: async () => {
+        await extractContentFromPageOrSelectionByRegex(
+          `/\\*\\*([^\\*]*)\\*\\*/g`,
+          "bold text"
         );
-        extractMatchesOnly = varBackup;
-        matchingStringsArray.forEach((match) => {
-          match.content = match.replace;
-        });
-        console.log("matchingStringsArray :>> ", matchingStringsArray);
-        copyMatchingUidsToClipboard(
-          matchingStringsArray,
-          "extract highlighted strings",
-          false,
-          false,
-          "",
-          "page",
-          true,
-          "Highlighted strings extracted"
-        );
-        infoToast(
-          changesNb +
-            " highlighited strings copied in the clipboard. Paste them anywhere in your graph!"
-        );
-        // selectedBlocks = [];
-        initializeNodesArrays();
       },
     });
 
