@@ -35,6 +35,8 @@ import {
   getPlainTextOfChildren,
   getChildrenUid,
   uidRegex,
+  getPagesNamesMatchingRegex,
+  replaceSubstringOrCaptureGroup,
 } from "./utils";
 import { displayForm } from "./formDialog";
 
@@ -51,10 +53,11 @@ const frpLabel = "Find & Replace: in Page zoom or selection of blocks (frp)";
 const frwLabel =
   "Find & Replace: in Workspace (Page + Sidebar + references) (frw)";
 const frgLabel = "Find & Replace: Whole Graph Replace (wgr)";
+const frpPageLabel = "Find & Replace: Bulk change of [[page names]]";
 const swgLabel = "Whole Graph search (wgs)";
 const ptobLabel = "Page ⇒ Block conversion (pbc)";
 const btopLabel = "Block ⇒ Page conversion (bpc)";
-const formLabel = "Bulk change format of selected blocks (bcf)";
+const formLabel = "Find & Replace: Bulk change format of selected blocks (bcf)";
 const examplesOfRegex =
   "Regex have to be written between /slashes/ with simple \\backslash before special character to escape. /g flag for global search is set by default.<br><br>" +
   "<strong>In Find field:</strong><br>" +
@@ -87,50 +90,50 @@ const pageBlockConversionInstructions =
   "If 'Move source content' is checked, all blocks in the source page or all child blocks of the source block will be moved to the target block or page.";
 
 // Variables for panel settings
-var includeEmbeds = true;
-var includeCollapsed = false;
-var excludeDuplicate = false;
-var displayBefore = false;
-var iziToastPosition;
-var showPath = true;
-var wholeGraph;
-var highlightColor;
-var matchesSortedBy = "page";
-var extractMatchesOnly = true;
-var codeBlockLimit = 150;
+let includeEmbeds = true;
+let includeCollapsed = false;
+let excludeDuplicate = false;
+let displayBefore = false;
+let iziToastPosition;
+let showPath = true;
+let wholeGraph;
+let highlightColor;
+let matchesSortedBy = "page";
+let extractMatchesOnly = true;
+let codeBlockLimit = 150;
 
 // Other global variables
-var selectionBlue;
-var lastOperation = "";
-var changesNb = 0;
-var changesNbBackup;
-var isPrepending;
-var workspace;
-var formatChange = false;
-var expandedNodesUid = [];
-var collapsedNodesUid = [];
-var referencedNodesUid = [];
-var uniqueReferences = [];
-var notExpandedNodesUid = [];
-var selectedBlocks = [];
-var modifiedBlocksCopy = [];
-var inputBackup = [];
-var refsUids = [];
-var eltFound;
-var currentToast = null;
-var scrollIndex = 0;
-var matchIndex = 0;
-var matchArray = [];
-var matchingStringsArray = [];
-var matchRefsArray;
-var matchingTotal = 0;
-var matchingHidden = 0;
-var ANDwithChildren = false;
-export var textToCopy;
+let selectionBlue;
+let lastOperation = "";
+let changesNb = 0;
+let changesNbBackup;
+let isPrepending;
+let workspace;
+let formatChange = false;
+let expandedNodesUid = [];
+let collapsedNodesUid = [];
+let referencedNodesUid = [];
+let uniqueReferences = [];
+let notExpandedNodesUid = [];
+let selectedBlocks = [];
+let modifiedBlocksCopy = [];
+let inputBackup = [];
+let refsUids = [];
+let eltFound;
+let currentToast = null;
+let scrollIndex = 0;
+let matchIndex = 0;
+let matchArray = [];
+let matchingStringsArray = [];
+let matchRefsArray;
+let matchingTotal = 0;
+let matchingHidden = 0;
+let ANDwithChildren = false;
+export let textToCopy;
 
-var iziToastColor = "#262626F0";
+let iziToastColor = "#262626F0";
 
-var Node = function (uid, attr, embeded = false) {
+let Node = function (uid, attr, embeded = false) {
   this.uid = uid;
   this.content = attr.string;
   this.page = attr.page;
@@ -218,7 +221,7 @@ const searchOnly = async function (
   if (workspace) checkWorkspace = "checked";
   if (findInput === null) findInput = "";
   let positionIcon = getNextPositionIcon(position);
-  var inputChanges = 0;
+  let inputChanges = 0;
   let switchToFindAndReplace = false;
   let searchLogic = "";
   if (refresh) initializeGlobalVar();
@@ -632,7 +635,7 @@ const findAndReplace = async function (
   refresh = true
 ) {
   let searchLogic = "";
-  var inputChanges = 0;
+  let inputChanges = 0;
   if (refresh) initializeGlobalVar();
   formatChange = false;
   let positionIcon = getNextPositionIcon(position);
@@ -1097,7 +1100,7 @@ const replaceSelectedMatches = function (param, i) {
   let replace = param[1];
   let blockContent = "";
   let length = matchArray.length;
-  var matches = [];
+  let matches = [];
   let match = matchArray[i];
   let uid = match.uid;
   if (match.blockRef != null) uid = match.blockRef;
@@ -1228,7 +1231,7 @@ const replaceOpened = async (
     find.lastIndex = 0;
     if (find.global) {
       let matchIterator = [...blockContent.matchAll(find)];
-      console.log(matchIterator);
+      // console.log(matchIterator);
       changesNb += matchIterator.length;
       if (reverse) {
         changesNb -= matchIterator.length;
@@ -1300,7 +1303,7 @@ const replaceOpened = async (
       }
     } else {
       const mFirst = blockContent.match(find);
-      console.log(mFirst);
+      // console.log(mFirst);
       if (
         replace.search(/\$regex/i) == -1 &&
         replace.search(/\$1/) == -1 &&
@@ -1335,7 +1338,7 @@ const replaceOpened = async (
   }
 };
 
-const regexVarInsert = function (match, replace, blockContent) {
+export const regexVarInsert = function (match, replace, blockContent) {
   let indexOfRegex = replace.search(/\$regexw?s?/i);
   let isWholeBlock = blockContent.length == match[0].length;
 
@@ -1890,7 +1893,7 @@ const processTextNode = (text, find, replace, uid = null, bref = null) => {
   let t;
   //let findLocal = new RegExp(find.source, find.flags);
   find.lastIndex = 0;
-  var matchIterator = [...text.matchAll(find)];
+  let matchIterator = [...text.matchAll(find)];
   let nbInBlock = 0;
   if (uid != null && matchIndex > 0) {
     if (matchArray[matchIndex - 1].uid === uid)
@@ -2213,7 +2216,7 @@ const caseBulkChange = (change) => {
 /******************************************************************************************      
 /*	Whole graph Find & Replace
 /******************************************************************************************/
-export var resultsJSX, dialogTitle;
+export let resultsJSX, dialogTitle, submitParams, handleSubmit;
 
 const findAndReplaceInWholeGraph = async function (
   label,
@@ -2260,6 +2263,10 @@ const findAndReplaceInWholeGraph = async function (
   let msgColor = "#ff7878"; // red
   let ANDsearchOption = "";
   switch (mode) {
+    case "replace page names":
+      inputPlaceholder = "Pattern as string or /regex(capture gr.)/";
+      replacePlaceholder = "String replacing pattern or capture group";
+      break;
     case "page to block":
       inputPlaceholder = "Page name: [[page]] or page";
       replacePlaceholder = "Block ref: ((uid)) or uid, or DNP";
@@ -2401,18 +2408,30 @@ const findAndReplaceInWholeGraph = async function (
             replaceInput,
             caseInsensitive,
             wordOnly,
-            searchLogic
+            searchLogic,
+            false,
+            mode === "replace page names" ? false : true
           );
           if (findInput.length > 0) {
-            wholeGraphProcessing(promptParameters, false, toast);
-            label = displayWholeGraphCountInTitle(toast);
-            if (matchArray.length > 0) {
-              displayResultsInPlainText(
-                matchArray.length +
-                  " blocks in your graph containing matching strings",
-                promptParameters,
-                findInput
+            if (mode === "replace page names") {
+              wholeGraphPageNameProcessing(promptParameters, false, toast);
+              label = displayWholeGraphCountInTitle(
+                toast,
+                changesNb + " matching [[page names]]"
               );
+              if (matchArray.length > 0)
+                displayPageNamesResults(...promptParameters, toast);
+            } else {
+              wholeGraphProcessing(promptParameters, false, toast);
+              label = displayWholeGraphCountInTitle(toast);
+              if (matchArray.length > 0) {
+                displayResultsInPlainText(
+                  matchArray.length +
+                    " blocks in your graph containing matching strings",
+                  promptParameters,
+                  findInput
+                );
+              }
             }
           }
         },
@@ -2425,18 +2444,31 @@ const findAndReplaceInWholeGraph = async function (
             replaceInput,
             caseInsensitive,
             wordOnly,
-            searchLogic
+            searchLogic,
+            false,
+            mode === "replace page names" ? false : true
           );
           if (findInput.length > 0) {
-            wholeGraphProcessing(promptParameters, false);
-            label = displayWholeGraphCountInTitle(toast);
+            if (mode === "replace page names") {
+              wholeGraphPageNameProcessing(promptParameters, false, toast);
+              label = displayWholeGraphCountInTitle(
+                toast,
+                changesNb + " matching [[page names]]"
+              );
+            } else {
+              wholeGraphProcessing(promptParameters, false, toast);
+              label = displayWholeGraphCountInTitle(toast);
+            }
             let searchString = promptParameters[0];
             if (!findInput.includes("/")) searchString = findInput;
             let replaceString = promptParameters[1];
             if (!replaceInput.includes("/")) replaceString = replaceInput;
             let title = "Matching blocks for search on: `" + searchString + "`";
+            if (mode === "replace page names")
+              title = title.replace("blocks", "page names");
             if (matchArray.length > 0)
-              if (matchArray.length < 200) displayChangedBlocks(true, title);
+              if (matchArray.length < 200)
+                displayChangedBlocks(true, title, mode);
               else {
                 errorToast(
                   "More than 200 results, narrow down your search! Click on 🔎︎ to see the list in plain text."
@@ -2453,29 +2485,42 @@ const findAndReplaceInWholeGraph = async function (
             replaceInput,
             caseInsensitive,
             wordOnly,
-            searchLogic
+            searchLogic,
+            false,
+            mode === "replace page names" ? false : true
           );
           if (findInput.length > 0) {
-            wholeGraphProcessing(promptParameters, false);
-            label = displayWholeGraphCountInTitle(toast);
+            if (mode === "replace page names") {
+              wholeGraphPageNameProcessing(promptParameters, false, toast);
+              label = displayWholeGraphCountInTitle(
+                toast,
+                changesNb + " matching [[page names]]"
+              );
+            } else {
+              wholeGraphProcessing(promptParameters, false);
+              label = displayWholeGraphCountInTitle(toast);
+            }
             let searchString = promptParameters[0];
             if (!findInput.includes("/")) searchString = findInput;
             let replaceString = promptParameters[1];
             if (!replaceInput.includes("/")) replaceString = replaceInput;
             if (matchArray.length < 200) {
-              copyMatchingUidsToClipboard(
-                matchArray,
-                searchString,
-                caseInsensitive,
-                showPath,
-                replaceString,
-                "whole graph",
-                isRegex(findInput) && extractMatchesOnly
-              );
+              if (mode === "replace page names") {
+                copyMatchingPagesToClipbard();
+              } else
+                copyMatchingUidsToClipboard(
+                  matchArray,
+                  searchString,
+                  caseInsensitive,
+                  showPath,
+                  replaceString,
+                  "whole graph",
+                  isRegex(findInput) && extractMatchesOnly
+                );
               if (matchArray.length > 0)
                 infoToast(
                   matchArray.length +
-                    " blocks or strings copied in the clipboard. Paste them anywhere in your graph!"
+                    " items copied in the clipboard. Paste them anywhere in your graph!"
                 );
             } else {
               errorToast(
@@ -2487,7 +2532,7 @@ const findAndReplaceInWholeGraph = async function (
         },
       ],
       [
-        "<button style='color:red; " + hideButton + "'><b>Confirm</b></button>",
+        "<button style='color:red; " + hideButton + "'><b>Replace</b></button>",
         async function (instance, toast, button, e, inputs) {
           let thisToast = { instance: instance, toast: toast };
           let promptParameters = normalizeInputRegex(
@@ -2495,10 +2540,18 @@ const findAndReplaceInWholeGraph = async function (
             replaceInput,
             caseInsensitive,
             wordOnly,
-            searchLogic
+            searchLogic,
+            false,
+            mode === "replace page names" ? false : true
           );
           if (findInput.length > 0)
             switch (mode) {
+              case "replace page names":
+                wholeGraphPageNameProcessing(promptParameters, false, toast);
+                if (matchArray.length > 0) {
+                  displayPageNamesResults(...promptParameters, toast);
+                }
+                break;
               case "replace":
                 lastOperation = "Find and Replace";
                 warningPopupWholeGraph(
@@ -2627,8 +2680,12 @@ const displayResultsInPlainText = (
   }
   resultsJSX = getResultsDisplayJSX(treeArray);
   dialogTitle = <h4>{dialogCaption}:</h4>;
-  displayForm();
-  let dialog = document.querySelector(".bp3-dialog");
+  handleSubmit = (toCopy) => {
+    navigator.clipboard.writeText(toCopy);
+  };
+  submitParams = [textToCopy];
+  displayForm("Copy to clipboard", ".block-list");
+  let dialog = document.querySelector(".bp3-dialog:has(.block-list)");
   let liIterator = dialog.querySelectorAll("li");
   if (promptParameters.length >= 3 && promptParameters[2] == "AND") {
     promptParameters[0] = promptParameters[0].or;
@@ -2646,7 +2703,7 @@ const getResultsDisplayJSX = (treeArray) => {
 
   let url = getUrl() + "/page/";
   return (
-    <div>
+    <div className="block-list">
       <ul>
         {treeArray.map((node) => {
           let pageMention = "[[" + getPageNameByPageUid(node.page) + "]]"; // getPageTitleByPage
@@ -2705,6 +2762,75 @@ const getResultsDisplayJSX = (treeArray) => {
   );
 };
 
+const displayPageNamesResults = (find, replace, toast) => {
+  let selectedElts = matchArray;
+  submitParams = [selectedElts];
+
+  let isAllSelected = selectedElts.length === matchArray.length;
+
+  const handleSelectElt = (evt, element) => {
+    selectedElts = selectedElts.includes(element)
+      ? selectedElts.filter((e) => e !== element)
+      : [...selectedElts, element];
+    submitParams = [selectedElts];
+  };
+
+  const handleSelectAll = (e, force) => {
+    const checkboxes = document
+      .querySelector(".page-list")
+      .querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach((cb) => {
+      let newState = e?.target?.checked || force;
+      cb.checked = newState;
+    });
+    selectedElts = !force && isAllSelected ? [] : [...matchArray];
+    isAllSelected = selectedElts.length === matchArray.length;
+    submitParams = [selectedElts];
+  };
+
+  resultsJSX = (
+    <div className="page-list">
+      <div>
+        <label className="select-all-pages">
+          <input type="checkbox" onChange={handleSelectAll} />
+          Select All/None
+        </label>
+      </div>
+      <ul>
+        {matchArray.map((match) => (
+          <li>
+            <input
+              type="checkbox"
+              onChange={(e) => handleSelectElt(e, match)}
+              className="page-checkbox"
+            />
+            {"[[" +
+              match.title +
+              "]] ➡︎ [[" +
+              replaceSubstringOrCaptureGroup(match.title, find, replace) +
+              "]]"}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+  dialogTitle = <h4>{matchArray.length} matching page names</h4>;
+  handleSubmit = () => {
+    warningPopupWholeGraph(
+      find,
+      replace,
+      "replace page names",
+      false,
+      toast,
+      selectedElts
+    );
+    //wholeGraphPageNameProcessing([find, replace], true, toast, selectedElts);
+  };
+  displayForm("Replace", ".page-list");
+
+  handleSelectAll(null, true);
+};
+
 const errorToast = (message) => {
   iziToast.warning({
     timeout: 4000,
@@ -2749,14 +2875,20 @@ const warningPopupWholeGraph = (
   replace,
   mode = "search",
   moveContent = false,
-  mainToast = null
+  mainToast = null,
+  arrayToProcess
 ) => {
   let title = "Replace a given string in the whole graph ";
   let findRegex = find;
+  let inputs;
   switch (mode) {
+    case "replace page names":
+      title = "Replacing patterns in [[page names]] ";
+      changesNb = arrayToProcess.length;
+      break;
     case "block to page":
       title = "Convert a block in a page ";
-      let inputs = normalizeInputRegex(find, replace);
+      inputs = normalizeInputRegex(find, replace);
       findRegex = inputs[0];
       replace = inputs[1];
       break;
@@ -2764,8 +2896,8 @@ const warningPopupWholeGraph = (
       title = "Convert a page in a block ";
       findRegex = getPageMentionRegex(find);
   }
-  console.log(findRegex, replace, moveContent);
-  wholeGraphProcessing([findRegex, replace], false);
+  if (mode !== "replace page names")
+    wholeGraphProcessing([findRegex, replace], false);
   if (mode === "block to page" || mode === "page to block") changesNb++;
   if (changesNb === 0) {
     errorToast(
@@ -2801,6 +2933,14 @@ const warningPopupWholeGraph = (
             modifiedBlocksCopy.pop();
           }
           switch (mode) {
+            case "replace page names":
+              wholeGraphPageNameProcessing(
+                [find, replace],
+                true,
+                toast,
+                arrayToProcess
+              );
+              break;
             case "block to page":
               changeBlockToPage(find, replace, moveContent);
               break;
@@ -2811,13 +2951,14 @@ const warningPopupWholeGraph = (
               wholeGraphProcessing([find, replace], true);
           }
           changesNbBackup = changesNb;
-          mainToast.instance.hide(
+          mainToast?.instance?.hide(
             { transitionOut: "fadeOut" },
             mainToast.toast,
             "button"
           );
           undoPopup(changesNb);
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
+          changesNb;
+          instance?.hide({ transitionOut: "fadeOut" }, toast, "button");
         },
         false,
       ],
@@ -2852,7 +2993,7 @@ const wholeGraphProcessing = (
     //   "Searching in the whole graph (it can takes a few seconds if there is a lot of blocks)...",
     //   totalBlocksNb / 15
     // );
-    console.log(totalBlocksNb + " blocks to process");
+    // console.log(totalBlocksNb + " blocks to process");
     let ratio = 10;
     for (let i = 0; i < totalBlocksNb; i++) {
       // TODO : progress indicator, needed for large graph
@@ -2888,6 +3029,46 @@ const wholeGraphProcessing = (
       replaceOpened(node, find, replace, "", makeChanges);
     });
     //toast.instance.hide({ transitionOut: "fadeOut" }, toast.toast, "button");
+  }
+  //console.log(matchArray);
+};
+
+const wholeGraphPageNameProcessing = (
+  promptParameters,
+  makeChanges = true,
+  toast = null,
+  arrayToProcess
+) => {
+  let findRegex = promptParameters[0];
+  let replace = promptParameters[1];
+  let searchLogic = "";
+  if (promptParameters.length > 2) {
+    searchLogic = promptParameters[2];
+  }
+  if (matchArray.length == 0) {
+    initializeGlobalVar();
+    const matchingPages = getPagesNamesMatchingRegex(findRegex);
+    for (let i = 0; i < matchingPages.length; i++) {
+      matchArray.push(matchingPages[i][0]);
+      changesNb++;
+    }
+  } else if (makeChanges) {
+    if (arrayToProcess === undefined) arrayToProcess = matchArray;
+    arrayToProcess.forEach((match) => {
+      modifiedBlocksCopy.push(match);
+      roamAlphaAPI.data.page.update({
+        page: {
+          uid: match.uid,
+          title: replaceSubstringOrCaptureGroup(
+            match.title,
+            findRegex,
+            replace
+          ),
+        },
+      });
+    });
+    lastOperation = "Find and Replace page names";
+    //toast.hide({ transitionOut: "fadeOut" }, toast.toast, "button");
   }
   //console.log(matchArray);
 };
@@ -2972,6 +3153,23 @@ const undoLastBulkOperation = async function (matchesNb) {
     let temp = inputBackup[1];
     inputBackup[1] = inputBackup[0];
     inputBackup[0] = temp;
+  } else if (lastOperation === "Find and Replace page names") {
+    let backupArray = [];
+    if (modifiedBlocksCopy.length) {
+      modifiedBlocksCopy.forEach((match) => {
+        backupArray.push({
+          uid: match.uid,
+          title: getPageTitleByPageUid(match.uid),
+        });
+        roamAlphaAPI.data.page.update({
+          page: {
+            uid: match.uid,
+            title: match.title,
+          },
+        });
+      });
+      modifiedBlocksCopy = [...backupArray];
+    }
   } else {
     for (let index = 0; index < modifiedBlocksCopy.length; index++) {
       let uid = modifiedBlocksCopy[index].uid;
@@ -3058,7 +3256,13 @@ const undoPopup = async function (
       [
         "<button>Display changed blocks in sidebar</button>",
         (instance, toast) => {
-          displayChangedBlocks();
+          displayChangedBlocks(
+            false,
+            "",
+            (lastOperation = "Find and Replace page names"
+              ? "replace page names"
+              : "")
+          );
           instance.hide({ transitionOut: "fadeOut" }, toast, "button");
         },
         true,
@@ -3483,7 +3687,17 @@ async function copyMatchingUidsToClipboard(
   navigator.clipboard.writeText(stringToPaste);
 }
 
-function insertChangedBlocks(startUid, blocksArray, title) {
+const copyMatchingPagesToClipbard = () => {
+  let stringToPaste = "";
+  if (matchArray.length) {
+    for (let i = 0; i < matchArray.length; i++) {
+      stringToPaste += `[[${matchArray[i].title}]]\n\n`;
+    }
+  }
+  navigator.clipboard.writeText(stringToPaste.trim());
+};
+
+function insertChangedBlocks(startUid, blocksArray, title, mode, isChanged) {
   if (blocksArray.length == 0) return null;
 
   let parentUid = window.roamAlphaAPI.util.generateUID();
@@ -3495,7 +3709,7 @@ function insertChangedBlocks(startUid, blocksArray, title) {
       string: title,
     },
   });
-  if (displayBefore) {
+  if (displayBefore && isChanged) {
     let blockUid = window.roamAlphaAPI.util.generateUID();
     window.roamAlphaAPI.createBlock({
       location: { "parent-uid": parentUid, order: 0 },
@@ -3525,19 +3739,29 @@ function insertChangedBlocks(startUid, blocksArray, title) {
       location: { "parent-uid": parentUid, order: i + shift },
       block: {
         uid: blockUid,
-        string: embStr1 + "((" + block.uid + "))" + embStr2,
+        string:
+          mode !== "replace page names"
+            ? embStr1 + "((" + block.uid + "))" + embStr2
+            : "[[" +
+              (isChanged ? getPageTitleByPageUid(block.uid) : block.title) +
+              "]]",
       },
     });
-    if (displayBefore)
+    if (displayBefore && isChanged)
       window.roamAlphaAPI.createBlock({
         location: { "parent-uid": blockUid, order: 0 },
-        block: { string: block.content },
+        block: {
+          string:
+            mode !== "replace page names"
+              ? block.content
+              : "`[[" + block.title + "]]`",
+        },
       });
   });
   return parentUid;
 }
 
-function displayChangedBlocks(onlySearch = false, title = "") {
+function displayChangedBlocks(onlySearch = false, title = "", mode) {
   let pageUid, parentUid;
   pageUid = getExtensionPageUidOrCreateIt();
   let timestamp = getNowDateAndTime();
@@ -3861,6 +4085,16 @@ export default {
       },
     });
     extensionAPI.ui.commandPalette.addCommand({
+      label: frpPageLabel,
+      callback: async () => {
+        wholeGraph = true;
+        await findAndReplaceInWholeGraph(
+          "[[Page Names]] bulk change",
+          "replace page names"
+        );
+      },
+    });
+    extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: " + ptobLabel,
       callback: async () => {
         wholeGraph = true;
@@ -4024,35 +4258,12 @@ export default {
     window.removeEventListener("keydown", onKeydown);
     window.removeEventListener("keydown", onKeyArrows);
 
-    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
-    //   label: "Search in page",
-    // });
-    // window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frpLabel });
-    // window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frwLabel });
-    // window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: frgLabel });
-    // window.roamAlphaAPI.ui.commandPalette.removeCommand({ label: formLabel });
-    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
-    //   label: "Find & Replace: " + swgLabel,
-    // });
     window.roamAlphaAPI.ui.commandPalette.removeCommand({
       label: "Find & Replace: Undo last operation",
     });
-    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
-    //   label: "Find & Replace: Redo last operation",
-    // });
     window.roamAlphaAPI.ui.commandPalette.removeCommand({
       label: "Find & Replace: Insert last changed blocks (references)",
     });
-    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
-    //   label: "Prepend or append content to selected blocks",
-    // });
-
-    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
-    //   label: "Find & Replace: " + ptobLabel,
-    // });
-    // window.roamAlphaAPI.ui.commandPalette.removeCommand({
-    //   label: "Find & Replace: " + btopLabel,
-    // });
     window.roamAlphaAPI.ui.commandPalette.removeCommand({
       label: "Find & Replace: Extract highlights in selection or page",
     });
