@@ -448,6 +448,7 @@ const searchOnly = async function (
           let changesNbBackup = changesNb;
           let matchArrayBackup = matchArray;
           await getFullMatchArrayInPage(promptParameters);
+          console.log("matchArray before copy :>> ", matchArray);
           copyMatchingUidsToClipboard(
             matchArray,
             searchString,
@@ -868,7 +869,7 @@ const findAndReplace = async function (
       ],
       [
         "<button><b>Replace all</b></button>",
-        function (instance, toast, button, e, inputs) {
+        async function (instance, toast, button, e, inputs) {
           let promptParameters = normalizeInputRegex(
             findInput,
             replaceInput,
@@ -893,7 +894,7 @@ const findAndReplace = async function (
             //  console.log("Nodes to process");
             //  console.log(nodesToProcess);
             changesNb += changesNbBackup;
-            selectedNodesProcessing(
+            await selectedNodesProcessing(
               nodesToProcess,
               promptParameters,
               replaceOpened
@@ -1060,6 +1061,7 @@ const initializeGlobalVar = (close) => {
   matchingHidden = 0;
   matchArray.length = 0;
   matchingStringsArray.length = 0;
+  selectionBlue = false;
 };
 
 const displayMatchCountInTitle = function (toast) {
@@ -1106,6 +1108,7 @@ const replaceSelectedMatches = function (param, i) {
     uid: uid,
     content: blockContent,
     open: attr.open,
+    page: attr.page,
   });
   //console.log(modifiedBlocksCopy);
   //let findLocal = new RegExp(param[0].source, param[0].flags);
@@ -1324,6 +1327,7 @@ const replaceOpened = async (
         uid: uid,
         content: blockContent,
         open: isOpened,
+        page: node.page,
       });
     updateBlock(uid, replacedBlock, isOpened);
   } else if (reverse) {
@@ -1955,7 +1959,12 @@ const appendPrepend = async (node, stringBefore, stringAfter) => {
   let uid = node.uid;
   let blockContent = node.content;
   let isOpened = node.open;
-  modifiedBlocksCopy.push({ uid: uid, content: blockContent, open: isOpened });
+  modifiedBlocksCopy.push({
+    uid: uid,
+    content: blockContent,
+    open: isOpened,
+    page: node.page,
+  });
   updateBlock(uid, stringBefore + blockContent + stringAfter, isOpened);
   changesNb++;
 };
@@ -2072,6 +2081,7 @@ const changeBlockFormat = async (node, headingLevel, alignment, view) => {
     uid: uid,
     content: blockContent,
     open: isOpened,
+    page: node.page,
     h: hOld,
     a: aOld,
     v: vOld,
@@ -3464,11 +3474,12 @@ async function copyMatchingUidsToClipboard(
   } else {
     for (let i = 0; i < array.length; i++) {
       displayArray.push(
-        "  - " + array[i].content + "[*](((" + array[i].uid + ")))"
+        "  - " + array[i].content + " [*](((" + array[i].uid + ")))"
       );
     }
   }
   let stringToPaste = title + "\n" + displayArray.join("\n");
+  console.log("stringToPaste :>> ", stringToPaste);
   navigator.clipboard.writeText(stringToPaste);
 }
 
@@ -3540,6 +3551,7 @@ function displayChangedBlocks(onlySearch = false, title = "") {
     // if (extractMatchesOnly && isRegex) array = matchingStringsArray;
     array = matchArray;
   }
+  console.log("array :>> ", array);
   if (matchesSortedBy === "page") array = sortByPageTitle(array);
   else if (matchesSortedBy === "date") array = sortByEditTime(array);
   parentUid = insertChangedBlocks(pageUid, array, title, false);
@@ -3915,20 +3927,27 @@ export default {
     extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: Extract highlights in selection or page",
       callback: async () => {
+        initializeGlobalVar();
         await getNodes();
+        console.log("expandedNodesUid :>> ", expandedNodesUid);
         let promptParameters = normalizeInputRegex(
           `/\\^\\^([^\\^]*)\\^\\^/g`,
           "$1"
         );
         promptParameters.push(false);
+        let varBackup = extractMatchesOnly;
+        extractMatchesOnly = true;
         selectedNodesProcessing(
           expandedNodesUid,
           promptParameters,
-          replaceOpened
+          replaceOpened,
+          false
         );
+        extractMatchesOnly = varBackup;
         matchingStringsArray.forEach((match) => {
           match.content = match.replace;
         });
+        console.log("matchingStringsArray :>> ", matchingStringsArray);
         copyMatchingUidsToClipboard(
           matchingStringsArray,
           "extract highlighted strings",
@@ -3943,7 +3962,8 @@ export default {
           changesNb +
             " highlighited strings copied in the clipboard. Paste them anywhere in your graph!"
         );
-        selectedBlocks = [];
+        // selectedBlocks = [];
+        initializeNodesArrays();
       },
     });
 
