@@ -839,6 +839,7 @@ const findAndReplace = async function (
             wordOnly,
             searchLogic
           );
+
           let matchesInBlock = getMatchesNbInBlock(matchArray, item.uid);
           replaceSelectedMatches(
             [promptParameters[0], promptParameters[1]],
@@ -848,6 +849,7 @@ const findAndReplace = async function (
             promptParameters[0],
             replaceInput
           );
+          console.log("replacingStr :>> ", replacingStr);
           item.replaced = true;
           if (matchesInBlock > 1) {
             let backupSimpleChangesNb = changesNbBackup;
@@ -1122,7 +1124,7 @@ const replaceSelectedMatches = function (param, i) {
     position = matches[match.indexInBlock].index;
   // In case of nested block ref in another blockref, only the first match can be changed currently
   else position = matches[0].index;
-  let replacedContent;
+  let replacedContent = "";
   if (
     replace.search(/\$regex/i) == -1 &&
     replace.search(/\$1/) == -1 &&
@@ -1134,16 +1136,15 @@ const replaceSelectedMatches = function (param, i) {
     blockContent = blockContent.slice(0, position) + replacedContent;
   } else {
     if (position != 0) {
-      replacedContent = blockContent.substring(0, position);
+      replacedContent = blockContent.substring(0, position) || "";
     }
-    replacedContent += regexVarInsert(
-      matches[match.indexInBlock],
-      replace,
-      blockContent
-    );
+
+    replacedContent +=
+      regexVarInsert(matches[match.indexInBlock], replace, blockContent) || "";
+
     let lastIndex = position + matches[match.indexInBlock][0].length;
     if (lastIndex < blockContent.length) {
-      replacedContent += blockContent.substring(lastIndex);
+      replacedContent += blockContent.substring(lastIndex) || "";
     }
     blockContent = replacedContent;
   }
@@ -1492,7 +1493,6 @@ const actualizeHighlights = (
             notExpandedNodesUid = [];
           }
           setTimeout(() => {
-            console.log("selectionBlue before getNodes:>> ", selectionBlue);
             getNodes();
             highlightCurrentSearch(promptParameters, expandToHighlight);
           }, addedTimeout);
@@ -3458,8 +3458,6 @@ function getSelection() {
       simulateClick(document.body);
     }, 50);
     if (!startUid && selection) {
-      console.log("Selection !");
-
       selectedBlocks = selection;
       getSelectedNodes(selectedBlocks);
       selection = null;
