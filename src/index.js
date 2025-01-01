@@ -2108,7 +2108,7 @@ const changeBlockFormatPrompt = async function () {
     '<option value="capitalizeW" title="Capitalize Each Word">Cap. Words</option>' +
     '<option value="capitalizeS" title="Capitalize each sentence.">Cap. sentences</option>';
   iziToast.show({
-    maxWidth: 500,
+    maxWidth: 520,
     timeout: false,
     close: false,
     progressBar: false,

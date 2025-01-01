@@ -1,7 +1,3 @@
-.fr-toast {
-  max-width: 500px !important;
-}
-
 .fr-toast label.iziToast-inputs-child,
 .iziToast > .iziToast-body .iziToast-inputs > select {
   font-size: 90%;
