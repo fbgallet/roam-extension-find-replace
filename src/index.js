@@ -438,7 +438,7 @@ const searchOnly = async function (
             wordOnly,
             searchLogic
           );
-          displaySearchResustsInPlainText(promptParameters);
+          displaySearchResustsInPlainText(promptParameters, findInput);
         },
       ],
       [
@@ -542,6 +542,7 @@ const searchOnly = async function (
 
 const getFullMatchArrayInPage = async (promptParameters) => {
   matchArray = [];
+  matchingStringsArray = [];
   promptParameters.push(false);
   let nodesToProcess = expandedNodesUid
     .concat(collapsedNodesUid)
@@ -556,7 +557,7 @@ const getFullMatchArrayInPage = async (promptParameters) => {
   );
 };
 
-const displaySearchResustsInPlainText = async (promptParameters) => {
+const displaySearchResustsInPlainText = async (promptParameters, findInput) => {
   let changesNbBackup = changesNb;
   let matchArrayBackup = matchArray;
 
@@ -566,7 +567,7 @@ const displaySearchResustsInPlainText = async (promptParameters) => {
     matchArray.length +
       " blocks in this page or workspace containing matching strings",
     promptParameters,
-    promptParameters[0].source
+    findInput
   );
   changesNb = changesNbBackup;
   matchArray = matchArrayBackup;
@@ -891,7 +892,6 @@ const findAndReplace = async function (
           if (promptParameters != null) {
             lastOperation = "Find and Replace";
 
-            console.log(modifiedBlocksCopy);
             if (changesNb == 0 && changesNbBackup == 0)
               while (modifiedBlocksCopy.length > 0) {
                 modifiedBlocksCopy.pop();
@@ -946,7 +946,7 @@ const findAndReplace = async function (
             wordOnly,
             searchLogic
           );
-          displaySearchResustsInPlainText(promptParameters);
+          displaySearchResustsInPlainText(promptParameters, findInput);
         },
       ],
       [
@@ -974,7 +974,7 @@ const findAndReplace = async function (
           );
           if (matchArray.length > 0)
             infoToast(
-              changesNb +
+              (changesNb || matchArray.length || matchingStringsArray.length) +
                 " blocks or strings copied in the clipboard. Paste them anywhere in your graph!"
             );
         },
@@ -2675,13 +2675,16 @@ const displayResultsInPlainText = (
   findInput
 ) => {
   let treeArray;
+
   if (extractMatchesOnly && isRegex(findInput)) {
     if (matchingStringsArray[0].groups.length > 0) {
       matchingStringsArray.forEach((match) => {
-        match.content = match.replace;
+        match.replace && (match.content = match.replace);
       });
     }
+
     treeArray = groupMatchesByPage(matchingStringsArray);
+
     dialogCaption = "matching strings in your graph";
   } else {
     treeArray = groupMatchesByPage(matchArray);

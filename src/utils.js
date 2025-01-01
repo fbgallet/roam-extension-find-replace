@@ -153,6 +153,15 @@ export function getPageUidByPageName(page) {
   else return p[0][0].uid;
 }
 
+export function getPageUidOfBlock(uid) {
+  let p = window.roamAlphaAPI.q(`[:find ?page-uid 
+							     :where [?b :block/uid "${uid}"]
+                   [?b :block/page ?p]
+                   [?p :block/uid ?page-uid]]`);
+  if (!p.length) return undefined;
+  else return p[0][0];
+}
+
 export function getPageNameByPageUid(uid) {
   let r = window.roamAlphaAPI.data.pull("[:node/title]", [":block/uid", uid]);
   if (r != null) return r[":node/title"];
@@ -394,7 +403,6 @@ export function addZero(i) {
 }
 
 export const groupMatchesByPage = function (matchArray) {
-  if (!displayArray.length || !displayArray[0].page) return matchArray;
   let displayArray = sortByPageTitle(matchArray);
   let treeArray = [];
   displayArray.forEach((node) => {
@@ -417,10 +425,10 @@ export const sortByPageTitle = function (array) {
       return {
         uid: node.uid,
         content: node.content,
-        page: node.page,
+        page: node.page || getPageUidOfBlock(node.uid),
       };
     })
-    .sort((a, b) => a.page.localeCompare(b.page));
+    .sort((a, b) => a.page?.localeCompare(b.page) || 0);
 };
 
 export const sortByEditTime = function (array) {
@@ -452,7 +460,9 @@ export const resolveReferences = (content, uidsArray) => {
 };
 
 export const isRegex = (string) => {
-  return string.indexOf("/") == 0 && string.lastIndexOf("/") != 0;
+  const firstIndex = string.indexOf("/");
+  const lastIndex = string.lastIndexOf("/");
+  return firstIndex === 0 && lastIndex && lastIndex - firstIndex > 1;
 };
 
 const removeEscapeCharacters = (str) => {

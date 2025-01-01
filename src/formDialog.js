@@ -44,6 +44,5 @@ export function displayForm(
   let cancelButton = dialog.querySelector(".bp3-button-text");
   cancelButton.innerText = "Close";
   let submitButton = dialog.querySelector(".bp3-button.bp3-intent-primary");
-  console.log("submitButton :>> ", submitButton);
   submitButton.innerText = submitButtonTitle;
 }
