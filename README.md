@@ -4,12 +4,14 @@
 
 **Way more than a simple Find & Replace, a versatile tool for search and bulk operations:**
 
+### 🆕 in v.9: Extract bold text
+
 ### 🆕 in v.8: Bulk change of [[page names]]
 
 - **[Search in page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-page) with an instant highlighting**
 - **[Search in graph](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#---search-in-the-whole-graph) with plain text or block references extraction**
 - **[Find & Replace](https://github.com/fbgallet/roam-extension-find-replace#--find--replace) either local, in blocks selection, page, workspace, or global, [in the whole graph](https://github.com/fbgallet/roam-extension-find-replace#find--replace-in-whole-graph-warning-danger-zone), with complete support of regular expressions.**
-- **[Extract highlights](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-extract-highlights-in-selection-or-page-command-in-the-command-palette-extract-only-the-highlighted-strings-and-add-an-alias-to-the-original-block) in selection or page, and other advanced extraction features.**
+- **[Extract highlights or bold](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-extract-highlights-in-selection-or-page-command-in-the-command-palette-extract-only-the-highlighted-strings-and-add-an-alias-to-the-original-block) in selection or page, and other advanced extraction features.**
 - **[Block <=> Page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-block--page-conversion) conversion, replacing in bulk their references.**
 - **[Bulk change format](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) of selected blocks (header, alignment, view, case)**
 - **[Bulk append/prepend](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) strings, ie. at the beginning or/and at the end of a set of selected blocks.**
@@ -73,9 +75,11 @@ In option, you can keep a copy of each changed block in its old state, and displ
 
 ### `Extract highlights in selection or page` command in the command palette extract only the highlighted strings, and add an alias to the original block.
 
+### `Extract bold text in selection or page` command
+
 On the same principle, but for advanced users, it's possible to extract only strings matching the regular expression in the find field, accordingly to the pattern in the replace field.
 
-If this option is enabled (in the setting panel), not the entire blocks but only the matching strings will be displayed in plain text with `🔎︎` or copied to the clipboard with '((📋))'. The replace field plays the rôle of a template with placeholders (`$RegEx` for the matching strings, `$1`, `$2` for capture groups).
+If this option is enabled (in the setting panel), not the entire blocks but only the matching strings will be displayed in plain text with `🔎︎` or copied to the clipboard with '((📋))'. The replace field plays the role of a template with placeholders (`$RegEx` for the matching strings, `$1`, `$2` for capture groups).
 
 ## Block <=> Page conversion
 
