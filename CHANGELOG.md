@@ -9,6 +9,7 @@
 - command "Extract highlighted text in selection or page" works again
 - Fixed broken features to display changed blocks after replacing them
 - replacing matching string with a capture group was inserting "undefined" if matching string was at the beginning of a block
+- Fixed option: "Extract only matching strings" instead of entire block
 
 ## v.8 (August 25th, 2024)
 
