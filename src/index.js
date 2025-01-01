@@ -39,6 +39,12 @@ import {
   replaceSubstringOrCaptureGroup,
 } from "./utils";
 import { displayForm } from "./formDialog";
+import {
+  copyMatchingPagesToClipbard,
+  copyMatchingUidsToClipboard,
+  displayChangedBlocks,
+  insertChangedBlocks,
+} from "./copyResults";
 
 const referencesRegexStr =
   "/\\(\\([^\\)]{9}\\)\\)|#?\\[\\[[^[\\]]*\\]\\]|#[^\\s]*|.*::/";
@@ -93,13 +99,13 @@ const pageBlockConversionInstructions =
 let includeEmbeds = true;
 let includeCollapsed = false;
 let excludeDuplicate = false;
-let displayBefore = false;
+export let displayBefore = false;
 let iziToastPosition;
-let showPath = true;
-let wholeGraph;
+export let showPath = true;
+export let wholeGraph;
 let highlightColor;
-let matchesSortedBy = "page";
-let extractMatchesOnly = true;
+export let matchesSortedBy = "page";
+export let extractMatchesOnly = true;
 let codeBlockLimit = 150;
 
 // Other global variables
@@ -116,15 +122,15 @@ let referencedNodesUid = [];
 let uniqueReferences = [];
 let notExpandedNodesUid = [];
 let selectedBlocks = [];
-let modifiedBlocksCopy = [];
+export let modifiedBlocksCopy = [];
 let inputBackup = [];
 let refsUids = [];
 let eltFound;
 let currentToast = null;
 let scrollIndex = 0;
 let matchIndex = 0;
-let matchArray = [];
-let matchingStringsArray = [];
+export let matchArray = [];
+export let matchingStringsArray = [];
 let matchRefsArray;
 let matchingTotal = 0;
 let matchingHidden = 0;
@@ -1028,7 +1034,7 @@ const findAndReplace = async function (
         currentToast = null;
         changesNbBackup = changesNb;
         if (changesNb > 0) {
-          undoPopup(changesNb);
+          undoPopup(changesNb, findInput);
         }
         workspace = false;
         selectedBlocks = [];
@@ -2154,6 +2160,7 @@ const changeBlockFormatPrompt = async function () {
             );
           }
           if (caseChange != "noChange") {
+            lastOperation = "Change case";
             caseBulkChange(caseChange);
           }
 
@@ -2469,7 +2476,7 @@ const findAndReplaceInWholeGraph = async function (
               title = title.replace("blocks", "page names");
             if (matchArray.length > 0)
               if (matchArray.length < 200)
-                displayChangedBlocks(true, title, mode, false);
+                displayChangedBlocks(true, title, mode, false, findInput);
               else {
                 errorToast(
                   "More than 200 results, narrow down your search! Click on 🔎︎ to see the list in plain text."
@@ -2668,7 +2675,7 @@ const displayResultsInPlainText = (
   findInput
 ) => {
   let treeArray;
-  if (extractMatchesOnly && isRegex) {
+  if (extractMatchesOnly && isRegex(findInput)) {
     if (matchingStringsArray[0].groups.length > 0) {
       matchingStringsArray.forEach((match) => {
         match.content = match.replace;
@@ -2957,7 +2964,7 @@ const warningPopupWholeGraph = (
             mainToast.toast,
             "button"
           );
-          undoPopup(changesNb);
+          undoPopup(changesNb, find);
           changesNb;
           instance?.hide({ transitionOut: "fadeOut" }, toast, "button");
         },
@@ -3022,10 +3029,12 @@ const wholeGraphProcessing = (
     // toast = infoToast(
     //   "Processing the whole graph (it can takes a few seconds if there is a lot of blocks)..."
     // );
+
     matchArray.forEach((match) => {
       let node = new Node(match.uid, {
         string: match.content,
         open: match.open,
+        page: match.page,
       });
       replaceOpened(node, find, replace, "", makeChanges);
     });
@@ -3223,11 +3232,12 @@ const undoLastBulkOperation = async function (matchesNb) {
       }
     }
   }
-  await undoPopup(matchesNb, 5000, "replace");
+  await undoPopup(matchesNb, "", 5000, "replace");
 };
 
 const undoPopup = async function (
   matchesNb = changesNbBackup,
+  findInput,
   timeout = 8000,
   display = "once"
 ) {
@@ -3263,7 +3273,8 @@ const undoPopup = async function (
             lastOperation === "Find and Replace page names"
               ? "replace page names"
               : "",
-            true
+            true,
+            findInput
           );
           instance.hide({ transitionOut: "fadeOut" }, toast, "button");
         },
@@ -3671,181 +3682,181 @@ function getNodesFromTree(
   }
 }
 
-async function copyMatchingUidsToClipboard(
-  array,
-  find,
-  caseInsensitive,
-  embed = false,
-  replace = "",
-  range = "page",
-  matches = extractMatchesOnly,
-  title = ""
-) {
-  let embStr1 = "";
-  let embStr2 = "";
-  if (embed) {
-    embStr1 = "{{embed-path: ";
-    embStr2 = "}}";
-  }
-  if (matches) {
-    array = matchingStringsArray;
-    if (array.length > 0 && array[0].groups.length > 0) {
-      array.forEach((match) => {
-        match.content = match.replace;
-      });
-    }
-  }
-  if (matchesSortedBy === "page") array = sortByPageTitle(array);
-  else if (matchesSortedBy === "date") array = sortByEditTime(array);
-  let uids = getUniqueUidsArray(array);
+// async function copyMatchingUidsToClipboard(
+//   array,
+//   find,
+//   caseInsensitive,
+//   embed = false,
+//   replace = "",
+//   range = "page",
+//   matches = extractMatchesOnly,
+//   title = ""
+// ) {
+//   let embStr1 = "";
+//   let embStr2 = "";
+//   if (embed) {
+//     embStr1 = "{{embed-path: ";
+//     embStr2 = "}}";
+//   }
+//   if (matches) {
+//     array = matchingStringsArray;
+//     if (array.length > 0 && array[0].groups.length > 0) {
+//       array.forEach((match) => {
+//         match.content = match.replace;
+//       });
+//     }
+//   }
+//   if (matchesSortedBy === "page") array = sortByPageTitle(array);
+//   else if (matchesSortedBy === "date") array = sortByEditTime(array);
+//   let uids = getUniqueUidsArray(array);
 
-  if (caseInsensitive) find += " (case insensitive)";
-  if (title === "") {
-    title =
-      "Search results[*]([[roam/depot/find & replace]]) on: `" + find + "`";
-    if (matches) title += " (only strings matching the regex)";
-    if (replace != "") title += ", to replace by `" + replace + "`";
-  }
-  let pageStr = " in the whole graph, ";
-  if (range != "whole graph") {
-    let zoomUid =
-      await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
-    let pageTitle = getPageTitleByBlockUid(zoomUid);
-    if (pageTitle === "") pageTitle = getPageTitleByPageUid(zoomUid);
-    pageStr = " in `" + pageTitle + "` page, ";
-  }
-  title += pageStr + getNowDateAndTime();
+//   if (caseInsensitive) find += " (case insensitive)";
+//   if (title === "") {
+//     title =
+//       "Search results[*]([[roam/depot/find & replace]]) on: `" + find + "`";
+//     if (matches) title += " (only strings matching the regex)";
+//     if (replace != "") title += ", to replace by `" + replace + "`";
+//   }
+//   let pageStr = " in the whole graph, ";
+//   if (range != "whole graph") {
+//     let zoomUid =
+//       await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
+//     let pageTitle = getPageTitleByBlockUid(zoomUid);
+//     if (pageTitle === "") pageTitle = getPageTitleByPageUid(zoomUid);
+//     pageStr = " in `" + pageTitle + "` page, ";
+//   }
+//   title += pageStr + getNowDateAndTime();
 
-  let displayArray = [];
-  if (!matches) {
-    for (let i = 0; i < uids.length; i++) {
-      displayArray.push("  - " + embStr1 + "((" + uids[i] + "))" + embStr2);
-    }
-  } else {
-    for (let i = 0; i < array.length; i++) {
-      displayArray.push(
-        "  - " + array[i].content + " [*](((" + array[i].uid + ")))"
-      );
-    }
-  }
-  let stringToPaste = title + "\n" + displayArray.join("\n");
+//   let displayArray = [];
+//   if (!matches) {
+//     for (let i = 0; i < uids.length; i++) {
+//       displayArray.push("  - " + embStr1 + "((" + uids[i] + "))" + embStr2);
+//     }
+//   } else {
+//     for (let i = 0; i < array.length; i++) {
+//       displayArray.push(
+//         "  - " + array[i].content + " [*](((" + array[i].uid + ")))"
+//       );
+//     }
+//   }
+//   let stringToPaste = title + "\n" + displayArray.join("\n");
 
-  navigator.clipboard.writeText(stringToPaste);
-}
+//   navigator.clipboard.writeText(stringToPaste);
+// }
 
-const copyMatchingPagesToClipbard = () => {
-  let stringToPaste = "";
-  if (matchArray.length) {
-    for (let i = 0; i < matchArray.length; i++) {
-      stringToPaste += `[[${matchArray[i].title}]]\n\n`;
-    }
-  }
-  navigator.clipboard.writeText(stringToPaste.trim());
-};
+// const copyMatchingPagesToClipbard = () => {
+//   let stringToPaste = "";
+//   if (matchArray.length) {
+//     for (let i = 0; i < matchArray.length; i++) {
+//       stringToPaste += `[[${matchArray[i].title}]]\n\n`;
+//     }
+//   }
+//   navigator.clipboard.writeText(stringToPaste.trim());
+// };
 
-function insertChangedBlocks(startUid, blocksArray, title, mode, isChanged) {
-  if (blocksArray.length == 0) return null;
+// function insertChangedBlocks(startUid, blocksArray, title, mode, isChanged) {
+//   if (blocksArray.length == 0) return null;
 
-  let parentUid = window.roamAlphaAPI.util.generateUID();
-  let shift = 0;
-  window.roamAlphaAPI.createBlock({
-    location: { "parent-uid": startUid, order: 0 },
-    block: {
-      uid: parentUid,
-      string: title,
-    },
-  });
-  if (displayBefore && isChanged) {
-    let blockUid = window.roamAlphaAPI.util.generateUID();
-    window.roamAlphaAPI.createBlock({
-      location: { "parent-uid": parentUid, order: 0 },
-      block: { uid: blockUid, string: "{{table}}", open: false },
-    });
-    parentUid = blockUid;
-    let afterUid = window.roamAlphaAPI.util.generateUID();
-    window.roamAlphaAPI.createBlock({
-      location: { "parent-uid": blockUid, order: 0 },
-      block: { uid: afterUid, string: "After Replace" },
-    });
-    window.roamAlphaAPI.createBlock({
-      location: { "parent-uid": afterUid, order: 0 },
-      block: { string: "Before Replace" },
-    });
-    shift = shift + 1;
-  }
-  let embStr1 = "";
-  let embStr2 = "";
-  if (showPath) {
-    embStr1 = "{{embed-path: ";
-    embStr2 = "}}";
-  }
-  blocksArray.forEach((block, i) => {
-    let blockUid = window.roamAlphaAPI.util.generateUID();
-    window.roamAlphaAPI.createBlock({
-      location: { "parent-uid": parentUid, order: i + shift },
-      block: {
-        uid: blockUid,
-        string:
-          mode === "replace page names"
-            ? "[[" +
-              (isChanged ? getPageTitleByPageUid(block.uid) : block.title) +
-              "]]"
-            : mode === "only matching"
-            ? block.content + ` [*](((${block.uid})))`
-            : embStr1 + "((" + block.uid + "))" + embStr2,
-      },
-    });
-    if (displayBefore && isChanged && mode !== "only matching")
-      window.roamAlphaAPI.createBlock({
-        location: { "parent-uid": blockUid, order: 0 },
-        block: {
-          string:
-            mode !== "replace page names"
-              ? block.content
-              : "`[[" + block.title + "]]`",
-        },
-      });
-  });
-  return parentUid;
-}
+//   let parentUid = window.roamAlphaAPI.util.generateUID();
+//   let shift = 0;
+//   window.roamAlphaAPI.createBlock({
+//     location: { "parent-uid": startUid, order: 0 },
+//     block: {
+//       uid: parentUid,
+//       string: title,
+//     },
+//   });
+//   if (displayBefore && isChanged) {
+//     let blockUid = window.roamAlphaAPI.util.generateUID();
+//     window.roamAlphaAPI.createBlock({
+//       location: { "parent-uid": parentUid, order: 0 },
+//       block: { uid: blockUid, string: "{{table}}", open: false },
+//     });
+//     parentUid = blockUid;
+//     let afterUid = window.roamAlphaAPI.util.generateUID();
+//     window.roamAlphaAPI.createBlock({
+//       location: { "parent-uid": blockUid, order: 0 },
+//       block: { uid: afterUid, string: "After Replace" },
+//     });
+//     window.roamAlphaAPI.createBlock({
+//       location: { "parent-uid": afterUid, order: 0 },
+//       block: { string: "Before Replace" },
+//     });
+//     shift = shift + 1;
+//   }
+//   let embStr1 = "";
+//   let embStr2 = "";
+//   if (showPath) {
+//     embStr1 = "{{embed-path: ";
+//     embStr2 = "}}";
+//   }
+//   blocksArray.forEach((block, i) => {
+//     let blockUid = window.roamAlphaAPI.util.generateUID();
+//     window.roamAlphaAPI.createBlock({
+//       location: { "parent-uid": parentUid, order: i + shift },
+//       block: {
+//         uid: blockUid,
+//         string:
+//           mode === "replace page names"
+//             ? "[[" +
+//               (isChanged ? getPageTitleByPageUid(block.uid) : block.title) +
+//               "]]"
+//             : mode === "only matching"
+//             ? block.content + ` [*](((${block.uid})))`
+//             : embStr1 + "((" + block.uid + "))" + embStr2,
+//       },
+//     });
+//     if (displayBefore && isChanged && mode !== "only matching")
+//       window.roamAlphaAPI.createBlock({
+//         location: { "parent-uid": blockUid, order: 0 },
+//         block: {
+//           string:
+//             mode !== "replace page names"
+//               ? block.content
+//               : "`[[" + block.title + "]]`",
+//         },
+//       });
+//   });
+//   return parentUid;
+// }
 
-function displayChangedBlocks(onlySearch = false, title = "", mode, isChanged) {
-  let pageUid, parentUid;
-  pageUid = getExtensionPageUidOrCreateIt();
-  let timestamp = getNowDateAndTime();
-  let array = [];
-  if (!onlySearch) {
-    title =
-      "List of blocks changed by last Find & Replace operation on " + timestamp;
-    array = modifiedBlocksCopy;
-  } else {
-    title += timestamp;
-    if (
-      extractMatchesOnly &&
-      (isRegex || title.toLowerCase().includes("extract"))
-    )
-      array = matchingStringsArray;
-    else array = matchArray;
-  }
+// function displayChangedBlocks(onlySearch = false, title = "", mode, isChanged) {
+//   let pageUid, parentUid;
+//   pageUid = getExtensionPageUidOrCreateIt();
+//   let timestamp = getNowDateAndTime();
+//   let array = [];
+//   if (!onlySearch) {
+//     title =
+//       "List of blocks changed by last Find & Replace operation on " + timestamp;
+//     array = modifiedBlocksCopy;
+//   } else {
+//     title += timestamp;
+//     if (
+//       extractMatchesOnly &&
+//       (isRegex || title.toLowerCase().includes("extract"))
+//     )
+//       array = matchingStringsArray;
+//     else array = matchArray;
+//   }
 
-  if (matchesSortedBy === "page") array = sortByPageTitle(array);
-  else if (matchesSortedBy === "date") array = sortByEditTime(array);
-  parentUid = insertChangedBlocks(pageUid, array, title, mode, isChanged);
-  window.roamAlphaAPI.ui.rightSidebar.addWindow({
-    window: { type: "block", "block-uid": parentUid },
-  });
-}
+//   if (matchesSortedBy === "page") array = sortByPageTitle(array);
+//   else if (matchesSortedBy === "date") array = sortByEditTime(array);
+//   parentUid = insertChangedBlocks(pageUid, array, title, mode, isChanged);
+//   window.roamAlphaAPI.ui.rightSidebar.addWindow({
+//     window: { type: "block", "block-uid": parentUid },
+//   });
+// }
 
-function getExtensionPageUidOrCreateIt() {
-  let pageUid = getPageUidByPageName("roam/depot/find & replace");
-  if (pageUid === undefined) {
-    pageUid = window.roamAlphaAPI.util.generateUID();
-    window.roamAlphaAPI.createPage({
-      page: { title: "roam/depot/find & replace", uid: pageUid },
-    });
-  }
-  return pageUid;
-}
+// function getExtensionPageUidOrCreateIt() {
+//   let pageUid = getPageUidByPageName("roam/depot/find & replace");
+//   if (pageUid === undefined) {
+//     pageUid = window.roamAlphaAPI.util.generateUID();
+//     window.roamAlphaAPI.createPage({
+//       page: { title: "roam/depot/find & replace", uid: pageUid },
+//     });
+//   }
+//   return pageUid;
+// }
 
 /******************************************************************************************      
 /*	Load / Unload

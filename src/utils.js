@@ -394,6 +394,7 @@ export function addZero(i) {
 }
 
 export const groupMatchesByPage = function (matchArray) {
+  if (!displayArray.length || !displayArray[0].page) return matchArray;
   let displayArray = sortByPageTitle(matchArray);
   let treeArray = [];
   displayArray.forEach((node) => {
