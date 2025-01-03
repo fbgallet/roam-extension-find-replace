@@ -2,6 +2,7 @@ import getPageTitleByPageUid from "roamjs-components/queries/getPageTitleByPageU
 import {
   displayBefore,
   extractMatchesOnly,
+  lastOperation,
   matchArray,
   matchesSortedBy,
   matchingStringsArray,
@@ -167,21 +168,28 @@ export function displayChangedBlocks(
   title = "",
   mode,
   isChanged,
-  findInput = ""
+  findStr = "",
+  replaceStr = ""
 ) {
   let pageUid, parentUid;
   pageUid = getExtensionPageUidOrCreateIt();
   let timestamp = getNowDateAndTime();
   let array = [];
   if (!onlySearch) {
-    title =
-      "List of blocks changed by last Find & Replace operation on " + timestamp;
+    let replaceInfos = findStr
+      ? `('${findStr}' ${
+          replaceStr ? " replaced by '" + replaceStr + "'" : " removed"
+        }) `
+      : "";
+    title = `${
+      lastOperation.includes("page") ? "Pages" : "Blocks"
+    } changed by last ${lastOperation} ${replaceInfos}on ${timestamp}`;
     array = modifiedBlocksCopy;
   } else {
     title += timestamp;
     if (
       extractMatchesOnly &&
-      (isRegex(findInput) || title.toLowerCase().includes("extract"))
+      (isRegex(findStr) || title.toLowerCase().includes("extract"))
     )
       array = matchingStringsArray;
     else array = matchArray;

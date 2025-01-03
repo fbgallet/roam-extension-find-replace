@@ -110,7 +110,7 @@ let codeBlockLimit = 150;
 
 // Other global variables
 let selectionBlue;
-let lastOperation = "";
+export let lastOperation = "";
 let changesNb = 0;
 let changesNbBackup;
 let isPrepending;
@@ -1034,7 +1034,7 @@ const findAndReplace = async function (
         currentToast = null;
         changesNbBackup = changesNb;
         if (changesNb > 0) {
-          undoPopup(changesNb, findInput);
+          undoPopup(changesNb, findInput, replaceInput);
         }
         workspace = false;
         selectedBlocks = [];
@@ -2471,7 +2471,7 @@ const findAndReplaceInWholeGraph = async function (
             if (!findInput.includes("/")) searchString = findInput;
             let replaceString = promptParameters[1];
             if (!replaceInput.includes("/")) replaceString = replaceInput;
-            let title = "Matching blocks for search on: `" + searchString + "`";
+            let title = "Matching blocks for search on: `" + findInput + "`";
             if (mode === "replace page names")
               title = title.replace("blocks", "page names");
             if (matchArray.length > 0)
@@ -2920,7 +2920,7 @@ const warningPopupWholeGraph = (
     timeout: 20000,
     id: "warning",
     zindex: 999,
-    maxWidth: 500,
+    maxWidth: 520,
     title: changesNb + " matches have been found !",
     message:
       "<br>" +
@@ -2967,7 +2967,7 @@ const warningPopupWholeGraph = (
             mainToast.toast,
             "button"
           );
-          undoPopup(changesNb, find);
+          undoPopup(changesNb, find, replace);
           changesNb;
           instance?.hide({ transitionOut: "fadeOut" }, toast, "button");
         },
@@ -3153,7 +3153,11 @@ const getPageMentionRegex = (pageName) => {
 /*	Undo last bulk operation
 /******************************************************************************************/
 
-const undoLastBulkOperation = async function (matchesNb) {
+const undoLastBulkOperation = async function (
+  matchesNb = changesNbBackup,
+  inputStr = "",
+  replaceStr = ""
+) {
   if (lastOperation === "block to page") {
     lastOperation = "page to block";
     changePageToBlock(inputBackup[1], inputBackup[0], inputBackup[4]);
@@ -3235,12 +3239,13 @@ const undoLastBulkOperation = async function (matchesNb) {
       }
     }
   }
-  await undoPopup(matchesNb, "", 5000, "replace");
+  await undoPopup(matchesNb, inputStr, replaceStr, 5000, "replace");
 };
 
 const undoPopup = async function (
   matchesNb = changesNbBackup,
   findInput,
+  replaceStr,
   timeout = 8000,
   display = "once"
 ) {
@@ -3262,7 +3267,7 @@ const undoPopup = async function (
         "<button>UNDO</button>",
         (instance, toast) => {
           //lastOperation = "Undo";
-          undoLastBulkOperation(matchesNb);
+          undoLastBulkOperation(matchesNb, replaceStr, findInput);
           instance.hide({ transitionOut: "fadeOut" }, toast, "button");
         },
         false,
@@ -3277,7 +3282,8 @@ const undoPopup = async function (
               ? "replace page names"
               : "",
             true,
-            findInput
+            findInput,
+            replaceStr
           );
           instance.hide({ transitionOut: "fadeOut" }, toast, "button");
         },
@@ -3596,7 +3602,12 @@ const selectedNodesProcessing = async (
     bulkFunction != findAndHighlight &&
     bulkFunction != expandPathBeforeHighlight
   )
-    if (displayUndoPopup) undoPopup(changesNb);
+    if (displayUndoPopup)
+      undoPopup(
+        changesNb,
+        parameters.length && parameters[0],
+        parameters.length > 1 && parameters[1]
+      );
 };
 
 const nodeProcessing = async (node, parameters, bulkFunction) => {
@@ -4189,7 +4200,11 @@ export default {
     window.roamAlphaAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: Undo last operation",
       callback: async () => {
-        await undoLastBulkOperation();
+        await undoLastBulkOperation(
+          changesNbBackup,
+          inputBackup.length > 1 && inputBackup[1],
+          inputBackup.length && inputBackup[0]
+        );
       },
     });
     extensionAPI.ui.commandPalette.addCommand({
