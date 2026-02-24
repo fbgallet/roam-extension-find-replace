@@ -152,10 +152,10 @@ export const undoPopup = async function (
     buttons: [
       [
         "<button>UNDO</button>",
-        (instance, toast) => {
-          //state.lastOperation = "Undo";
-          undoLastBulkOperation(matchesNb, replaceStr, findInput);
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
+        async (instance, toast) => {
+          instance.hide({ transitionOut: "fadeOutUp" }, toast, "button");
+          await new Promise((r) => setTimeout(r, 300));
+          await undoLastBulkOperation(matchesNb, replaceStr, findInput);
         },
         false,
       ],

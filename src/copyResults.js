@@ -52,7 +52,7 @@ export async function copyMatchingUidsToClipboard(
       await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
     let pageTitle = getPageTitleByBlockUid(zoomUid);
     if (pageTitle === "") pageTitle = getPageTitleByPageUid(zoomUid);
-    pageStr = " in `" + pageTitle + "` page, ";
+    pageStr = " in [[" + pageTitle + "]] page, ";
   }
   title += pageStr + getNowDateAndTime();
 

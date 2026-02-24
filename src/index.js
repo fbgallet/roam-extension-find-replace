@@ -14,7 +14,12 @@ import {
   highlightString,
   setHighlightingDeps,
 } from "./highlighting";
-import { undoPopup, redoPopup, setUndoRedoDeps } from "./undoRedo";
+import {
+  undoLastBulkOperation,
+  undoPopup,
+  redoPopup,
+  setUndoRedoDeps,
+} from "./undoRedo";
 import {
   appendPrepend,
   appendPrependDialog,
@@ -48,7 +53,7 @@ const referencesRegexStr =
 const referencesRegex = new RegExp(referencesRegexStr, "g");
 
 const sipLabel =
-  "Find & Replace: Search in page, blocks selection or state.workspace (sip)";
+  "Find & Replace: Search in page, blocks selection or workspace (sip)";
 const frpLabel = "Find & Replace: in Page zoom or selection of blocks (frp)";
 const frwLabel =
   "Find & Replace: in Workspace (Page + Sidebar + references) (frw)";
@@ -395,7 +400,7 @@ export default {
         let selection = getSelection();
         if (selection === null) selection = "";
         //await getNodes();
-        findAndReplace("Find & Replace in page or state.workspace", selection);
+        findAndReplace("Find & Replace in page or workspace", selection);
       },
     });
     extensionAPI.ui.commandPalette.addCommand({
@@ -404,7 +409,7 @@ export default {
         state.workspace = true;
         await getWorkspaceNodes();
         findAndReplace(
-          "Find & Replace in page or state.workspace",
+          "Find & Replace in page or workspace",
           "",
           "",
           "",
@@ -481,7 +486,7 @@ export default {
         await findAndReplaceInWholeGraph(btopLabel, "block to page", mention);
       },
     });
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: Undo last operation",
       callback: async () => {
         await undoLastBulkOperation(
@@ -498,7 +503,7 @@ export default {
       },
     });
     extensionAPI.ui.commandPalette.addCommand({
-      label: "Prepend or append content to selected blocks",
+      label: "Find & Replace: Prepend or append content to selected blocks",
       callback: () => {
         state.isPrepending = true;
         getSelection();
@@ -511,7 +516,7 @@ export default {
       },
     });
 
-    window.roamAlphaAPI.ui.commandPalette.addCommand({
+    extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: Insert last changed blocks (references)",
       callback: async () => {
         let startUid = window.roamAlphaAPI.ui.getFocusedBlock()?.["block-uid"];
@@ -600,15 +605,6 @@ export default {
     window.removeEventListener("keydown", onKeydown);
     window.removeEventListener("keydown", onKeyArrows);
 
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({
-      label: "Find & Replace: Undo last operation",
-    });
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({
-      label: "Find & Replace: Insert last changed blocks (references)",
-    });
-    window.roamAlphaAPI.ui.commandPalette.removeCommand({
-      label: "Find & Replace: Extract highlights in selection or page",
-    });
     roamAlphaAPI.ui.blockContextMenu.removeCommand({
       label: "Convert some [[page]] => this block",
     });

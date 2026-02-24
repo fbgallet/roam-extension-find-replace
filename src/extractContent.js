@@ -1,7 +1,8 @@
-import { normalizeInputRegex } from "./utils";
+import { normalizeInputRegex, getPageTitleByBlockUid } from "./utils";
 import { copyMatchingUidsToClipboard, displayChangedBlocks } from "./copyResults";
 import { infoToast } from "./notifications";
 import { getSelection, getNodes, initializeNodesArrays } from "./nodeTraversal";
+import getPageTitleByPageUid from "roamjs-components/queries/getPageTitleByPageUid";
 import state from "./state";
 
 // Dependencies injected from index.js to avoid circular imports
@@ -18,6 +19,11 @@ export function setExtractContentDeps({
 }
 
 export async function extractContentFromPageOrSelectionByRegex(strRegex, title) {
+  let zoomUid =
+    await window.roamAlphaAPI.ui.mainWindow.getOpenPageOrBlockUid();
+  let pageTitle = getPageTitleByBlockUid(zoomUid);
+  if (pageTitle === "") pageTitle = getPageTitleByPageUid(zoomUid);
+
   _initializeGlobalVar();
   getSelection();
   await getNodes();
@@ -52,7 +58,7 @@ export async function extractContentFromPageOrSelectionByRegex(strRegex, title) 
       ` ${title} copied in the clipboard. Paste them anywhere in your graph!`,
   );
 
-  displayChangedBlocks(true, `Extracted ${title} on `, "only matching");
+  displayChangedBlocks(true, `Extracted ${title} in [[${pageTitle}]] on `, "only matching");
   state.extractMatchesOnly = varBackup;
   initializeNodesArrays();
 }

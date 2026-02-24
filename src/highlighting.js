@@ -215,14 +215,14 @@ export const expandPathBeforeHighlight = async (node, find, replace, searchLogic
     if (state.ANDwithChildren)
       hasMatches =
         hasMatches ||
-        ANDmatchInChildren(
+        (await ANDmatchInChildren(
           node,
           blockContent,
           resolvedBlockContent,
           find,
           replace,
           true,
-        );
+        ));
   }
   if (hasMatches) {
     if (collapsedParents.length != 0) {
@@ -372,7 +372,7 @@ export const findAndHighlight = async (
     find.and.lastIndex = 0;
     matchInBlockContent = find.and.test(resolvedBlockContent);
     if (state.ANDwithChildren && !matchInBlockContent) {
-      matchInBlockContent = ANDmatchInChildren(
+      matchInBlockContent = await ANDmatchInChildren(
         node,
         blockContent,
         resolvedBlockContent,
@@ -432,6 +432,7 @@ export const highlightString = (
   uid = null,
   bref = null,
 ) => {
+  if (node == null) return;
   if (node.nodeType == 3) {
     // nodeType 3 is Text
     let foundChild = processTextNode(node.nodeValue, find, replace, uid, bref);

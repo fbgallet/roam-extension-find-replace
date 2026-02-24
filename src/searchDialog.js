@@ -8,7 +8,13 @@ import {
 } from "./utils";
 import { copyMatchingUidsToClipboard } from "./copyResults";
 import { infoToast } from "./notifications";
-import { onKeyArrows, actualizeHighlights, highlightCurrentSearch, highlightNextMatch, removeHighlightedNodes } from "./highlighting";
+import {
+  onKeyArrows,
+  actualizeHighlights,
+  highlightCurrentSearch,
+  highlightNextMatch,
+  removeHighlightedNodes,
+} from "./highlighting";
 import { displayResultsInPlainText } from "./wholeGraph";
 import { getNodes } from "./nodeTraversal";
 import state from "./state";
@@ -48,7 +54,7 @@ export const searchOnly = async function (
   workspaceArg = false,
   position = state.iziToastPosition,
   refresh = true,
-  label = "Search in page or state.workspace",
+  label = "Search in page or workspace",
 ) {
   let checkCase = "";
   if (caseInsensitive) checkCase = "checked";
@@ -239,8 +245,9 @@ export const searchOnly = async function (
         function (instance, toast, button, e, inputs) {
           window.removeEventListener("keydown", onKeyArrows);
           switchToFindAndReplace = true;
-          if (state.matchingTotal != 0) label = _displayMatchCountInTitle(toast);
-          else label = "Find & Replace in page or state.workspace";
+          if (state.matchingTotal != 0)
+            label = _displayMatchCountInTitle(toast);
+          else label = "Find & Replace in page or workspace";
           _findAndReplace(
             label,
             findInput,
@@ -383,7 +390,10 @@ export const getFullMatchArrayInPage = async (promptParameters) => {
   );
 };
 
-export const displaySearchResustsInPlainText = async (promptParameters, findInput) => {
+export const displaySearchResustsInPlainText = async (
+  promptParameters,
+  findInput,
+) => {
   state.changesNbBackup = state.changesNb;
   let matchArrayBackup = state.matchArray;
 
@@ -391,7 +401,7 @@ export const displaySearchResustsInPlainText = async (promptParameters, findInpu
 
   displayResultsInPlainText(
     state.matchArray.length +
-      " blocks in this page or state.workspace containing matching strings",
+      " blocks in this page or workspace containing matching strings",
     promptParameters,
     findInput,
   );
