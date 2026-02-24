@@ -4,13 +4,7 @@ import FormDialog from "roamjs-components/components/FormDialog";
 import { Button } from "@blueprintjs/core";
 import { useState } from "react";
 import renderOverlay from "roamjs-components/util/renderOverlay";
-import {
-  resultsJSX,
-  dialogTitle,
-  textToCopy,
-  handleSubmit,
-  submitParams,
-} from ".";
+import state from "./state";
 
 const Dialog = () => {
   const [isOpen, setIsOpen] = useState(true);
@@ -18,10 +12,10 @@ const Dialog = () => {
     <>
       <FormDialog
         isOpen={isOpen}
-        title={dialogTitle}
+        title={state.dialogTitle}
         onClose={() => setIsOpen(false)}
-        onSubmit={() => handleSubmit(...submitParams)}
-        content={resultsJSX}
+        onSubmit={() => state.handleSubmit(...state.submitParams)}
+        content={state.resultsJSX}
         className={"fr-dialog"}
       />
     </>

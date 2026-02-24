@@ -1,14 +1,6 @@
 import getPageTitleByPageUid from "roamjs-components/queries/getPageTitleByPageUid";
-import {
-  displayBefore,
-  extractMatchesOnly,
-  lastOperation,
-  matchArray,
-  matchesSortedBy,
-  matchingStringsArray,
-  modifiedBlocksCopy,
-  showPath,
-} from ".";
+import state from "./state";
+
 import {
   getNowDateAndTime,
   getPageTitleByBlockUid,
@@ -26,8 +18,8 @@ export async function copyMatchingUidsToClipboard(
   embed = false,
   replace = "",
   range = "page",
-  matches = extractMatchesOnly,
-  title = ""
+  matches = state.extractMatchesOnly,
+  title = "",
 ) {
   let embStr1 = "";
   let embStr2 = "";
@@ -36,15 +28,15 @@ export async function copyMatchingUidsToClipboard(
     embStr2 = "}}";
   }
   if (matches) {
-    array = matchingStringsArray;
+    array = state.matchingStringsArray;
     if (array.length > 0 && array[0].groups.length > 0) {
       array.forEach((match) => {
         match.content = match.replace;
       });
     }
   }
-  if (matchesSortedBy === "page") array = sortByPageTitle(array);
-  else if (matchesSortedBy === "date") array = sortByEditTime(array);
+  if (state.matchesSortedBy === "page") array = sortByPageTitle(array);
+  else if (state.matchesSortedBy === "date") array = sortByEditTime(array);
   let uids = getUniqueUidsArray(array);
 
   if (caseInsensitive) find += " (case insensitive)";
@@ -72,7 +64,7 @@ export async function copyMatchingUidsToClipboard(
   } else {
     for (let i = 0; i < array.length; i++) {
       displayArray.push(
-        "  - " + array[i].content + " [*](((" + array[i].uid + ")))"
+        "  - " + array[i].content + " [*](((" + array[i].uid + ")))",
       );
     }
   }
@@ -83,9 +75,9 @@ export async function copyMatchingUidsToClipboard(
 
 export const copyMatchingPagesToClipbard = () => {
   let stringToPaste = "";
-  if (matchArray.length) {
-    for (let i = 0; i < matchArray.length; i++) {
-      stringToPaste += `[[${matchArray[i].title}]]\n\n`;
+  if (state.matchArray.length) {
+    for (let i = 0; i < state.matchArray.length; i++) {
+      stringToPaste += `[[${state.matchArray[i].title}]]\n\n`;
     }
   }
   navigator.clipboard.writeText(stringToPaste.trim());
@@ -96,7 +88,7 @@ export function insertChangedBlocks(
   blocksArray,
   title,
   mode,
-  isChanged
+  isChanged,
 ) {
   if (blocksArray.length == 0) return null;
 
@@ -109,7 +101,7 @@ export function insertChangedBlocks(
       string: title,
     },
   });
-  if (displayBefore && isChanged) {
+  if (state.displayBefore && isChanged) {
     let blockUid = window.roamAlphaAPI.util.generateUID();
     window.roamAlphaAPI.createBlock({
       location: { "parent-uid": parentUid, order: 0 },
@@ -129,7 +121,7 @@ export function insertChangedBlocks(
   }
   let embStr1 = "";
   let embStr2 = "";
-  if (showPath) {
+  if (state.showPath) {
     embStr1 = "{{embed-path: ";
     embStr2 = "}}";
   }
@@ -145,11 +137,11 @@ export function insertChangedBlocks(
               (isChanged ? getPageTitleByPageUid(block.uid) : block.title) +
               "]]"
             : mode === "only matching"
-            ? block.content + ` [*](((${block.uid})))`
-            : embStr1 + "((" + block.uid + "))" + embStr2,
+              ? block.content + ` [*](((${block.uid})))`
+              : embStr1 + "((" + block.uid + "))" + embStr2,
       },
     });
-    if (displayBefore && isChanged && mode !== "only matching")
+    if (state.displayBefore && isChanged && mode !== "only matching")
       window.roamAlphaAPI.createBlock({
         location: { "parent-uid": blockUid, order: 0 },
         block: {
@@ -169,7 +161,7 @@ export function displayChangedBlocks(
   mode,
   isChanged,
   findStr = "",
-  replaceStr = ""
+  replaceStr = "",
 ) {
   let pageUid, parentUid;
   pageUid = getExtensionPageUidOrCreateIt();
@@ -182,22 +174,22 @@ export function displayChangedBlocks(
         }) `
       : "";
     title = `${
-      lastOperation.includes("page") ? "Pages" : "Blocks"
-    } changed by last ${lastOperation} ${replaceInfos}on ${timestamp}`;
-    array = modifiedBlocksCopy;
+      state.lastOperation.includes("page") ? "Pages" : "Blocks"
+    } changed by last ${state.lastOperation} ${replaceInfos}on ${timestamp}`;
+    array = state.modifiedBlocksCopy;
   } else {
     title += timestamp;
     if (
-      extractMatchesOnly &&
+      state.extractMatchesOnly &&
       (isRegex(findStr) || title.toLowerCase().includes("extract"))
     )
-      array = matchingStringsArray;
-    else array = matchArray;
+      array = state.matchingStringsArray;
+    else array = state.matchArray;
   }
 
   if (mode !== "replace page names") {
-    if (matchesSortedBy === "page") array = sortByPageTitle(array);
-    else if (matchesSortedBy === "date") array = sortByEditTime(array);
+    if (state.matchesSortedBy === "page") array = sortByPageTitle(array);
+    else if (state.matchesSortedBy === "date") array = sortByEditTime(array);
   }
   parentUid = insertChangedBlocks(pageUid, array, title, mode, isChanged);
   window.roamAlphaAPI.ui.rightSidebar.addWindow({

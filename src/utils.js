@@ -1,5 +1,5 @@
 import getEditTime from "roamjs-components/queries/getEditTimeByBlockUid";
-import { regexVarInsert } from ".";
+import { regexVarInsert } from "./findReplaceDialog";
 
 export const uidRegex = /\(\([^\)]{9}\)\)/g;
 const pageRegex = /\[\[.*\]\]/g; // very simplified...
@@ -74,23 +74,31 @@ export function getChildrenUid(uid) {
 }
 
 export function getParentTreeUids(uid) {
-  if (uid) {
-    let arrayOfArrays = window.roamAlphaAPI.q(`[:find ?p
-                      :where 
-                      [?q :block/uid "${uid}"]
-                      [?q :block/parents ?i]
-                      [?i :block/uid ?p]
-                    ]`);
-    let parentArray = [];
-    for (let i = 1; i < arrayOfArrays.length; i++) {
-      parentArray.push(arrayOfArrays[i][0]);
-    }
-    return parentArray;
-  } else return null;
-  /* return window.roamAlphaAPI.data.pull(
-      "[:block/parents]",
-      `[:db/id :block/uid] [:block/uid "${uid}"]`
-    );*/
+  if (!uid) return null;
+  // Walk the direct-parent chain one step at a time (innermost → outermost),
+  // then reverse to get top-down order. Uses :block/children to find the
+  // direct parent (the block that has uid as an immediate child).
+  let chain = [];
+  let current = uid;
+  while (true) {
+    let result = window.roamAlphaAPI.q(
+      `[:find ?parentUid
+        :where [?b :block/uid "${current}"]
+               [?p :block/children ?b]
+               [?p :block/uid ?parentUid]]`
+    );
+    if (!result || result.length === 0) break;
+    let parentUid = result[0][0];
+    // Stop when we reach the page level (pages have :node/title, not :block/string)
+    let isBlock = window.roamAlphaAPI.q(
+      `[:find ?s :where [?e :block/uid "${parentUid}"] [?e :block/string ?s]]`
+    );
+    if (!isBlock || isBlock.length === 0) break;
+    chain.push(parentUid);
+    current = parentUid;
+  }
+  chain.reverse(); // now outermost first
+  return chain;
 }
 
 export function getBlockAttributes(uid) {
@@ -134,10 +142,12 @@ export function getAllBlockData() {
 }
 
 export function getPageTitleByBlockUid(uid) {
-  return window.roamAlphaAPI.pull("[{:block/page [:block/uid :node/title]}]", [
-    ":block/uid",
-    uid,
-  ])[":block/page"][":node/title"];
+  let result = window.roamAlphaAPI.pull(
+    "[{:block/page [:block/uid :node/title]}]",
+    [":block/uid", uid],
+  );
+  if (result && result[":block/page"]) return result[":block/page"][":node/title"];
+  return "";
 }
 
 export function getBlockContentByUid(uid) {
@@ -179,17 +189,15 @@ export async function getPageUidByNameOrCreateIt(name) {
   return pageUid;
 }
 
-export function updateBlock(uid, content, isOpen) {
-  setTimeout(function () {
-    if (isOpen !== undefined)
-      window.roamAlphaAPI.updateBlock({
-        block: { uid: uid, string: content, open: isOpen },
-      });
-    else
-      window.roamAlphaAPI.updateBlock({
-        block: { uid: uid, string: content },
-      });
-  }, 10);
+export async function updateBlock(uid, content, isOpen) {
+  if (isOpen !== undefined)
+    return window.roamAlphaAPI.updateBlock({
+      block: { uid: uid, string: content, open: isOpen },
+    });
+  else
+    return window.roamAlphaAPI.updateBlock({
+      block: { uid: uid, string: content },
+    });
 }
 
 export function simulateClick(el) {
@@ -209,7 +217,7 @@ export function simulateClick(el) {
 export const createBlockOnDNP = async (order = "last", content = "") => {
   let blockUid = window.roamAlphaAPI.util.generateUID();
   let dnp = window.roamAlphaAPI.util.dateToPageUid(new Date());
-  window.roamAlphaAPI.createBlock({
+  await window.roamAlphaAPI.createBlock({
     location: { "parent-uid": dnp, order: order },
     block: {
       uid: blockUid,
