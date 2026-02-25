@@ -55,7 +55,9 @@ button.add-to-sidebar {
 }
 
 button.add-to-sidebar:hover {
-  box-shadow: 0px 2px 4px -1px #000000, 0px 0px 4px #dfdfdf;
+  box-shadow:
+    0px 2px 4px -1px #000000,
+    0px 0px 4px #dfdfdf;
   filter: brightness(70%);
 }
 
@@ -65,7 +67,7 @@ button.add-to-sidebar:hover {
 .bp3-dialog:has(.page-list) {
   position: absolute;
   width: 90%;
-  max-width: 750px;
+  max-width: 850px;
   max-height: 90%;
 }
 
@@ -75,6 +77,26 @@ button.add-to-sidebar:hover {
   overflow-x: hidden;
   background: inherit;
 }
+/* When showing block results, the component manages its own scroll */
+.bp3-dialog .bp3-dialog-body:has(.block-results-scroll) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.bp3-dialog .bp3-dialog-body:has(.block-results-scroll) .block-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 15px 5px 0;
+}
+.block-results-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0; /* required for flex child to scroll */
+}
 .bp3-dialog .bp3-dialog-body:has(.page-list) {
   padding-left: 20px;
 }
@@ -82,8 +104,125 @@ button.add-to-sidebar:hover {
   background: inherit;
 }
 
-.bp3-dialog .bp3-dialog-body:has(.block-list) ul {
-  padding-left: 20px;
+/* Block Results Component */
+.block-results-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 8px;
+}
+.block-results-toolbar .bp3-input-group {
+  flex: 1;
+}
+.block-results-summary {
+  font-size: 12px;
+  opacity: 0.6;
+  padding-bottom: 8px;
+}
+.block-results-page-group {
+  margin-bottom: 4px;
+}
+.block-results-page-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.block-results-page-header:hover {
+  opacity: 0.8;
+}
+.block-results-blocks {
+  padding-left: 12px;
+  list-style-type: none;
+}
+.block-results-blocks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+}
+/* Bullet in text mode only */
+.block-results-blocks.text-mode li::before {
+  content: "•";
+  flex-shrink: 0;
+  margin-top: 1px;
+  opacity: 0.5;
+}
+.block-results-checkbox.bp3-checkbox {
+  margin: 2px 0 0 0;
+  flex-shrink: 0;
+  /* checkbox sits on the right — order set in JSX */
+}
+.block-results-content {
+  flex: 1;
+  min-width: 0;
+}
+/* Rendered Roam block container */
+.block-rendered-view {
+  line-height: 1.5;
+}
+/* Hide the page-path breadcrumb rendered by Roam's renderBlock(zoom-path?:true) */
+.hide-block-path .block-rendered-view .flex-h-box {
+  display: none;
+}
+/* Inline page label shown in date-sort flat list (text mode) */
+.block-results-inline-page {
+  font-size: 11px;
+  opacity: 0.55;
+  margin-right: 4px;
+}
+/* View toggle: slightly smaller text to keep toolbar compact */
+.block-results-view-toggle .bp3-button {
+  font-size: 11px;
+  padding: 2px 5px;
+}
+/* Pagination for rendered mode */
+.block-results-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 0 8px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+/* Footer: outside the scroll area, always visible */
+.block-results-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0 2px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+.block-results-footer .block-results-select-all.bp3-checkbox {
+  margin: 0;
+}
+.block-results-sidebar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: inherit;
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+.block-results-sidebar-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+.block-results-sidebar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .bp3-dialog .page-list input[type="checkbox"] {

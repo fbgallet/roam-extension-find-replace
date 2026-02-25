@@ -1,42 +1,40 @@
 import React from "react";
-import ReactDOM from "react-dom";
-import FormDialog from "roamjs-components/components/FormDialog";
-import { Button } from "@blueprintjs/core";
-import { useState } from "react";
+import { Dialog, Button, Intent, Classes } from "@blueprintjs/core";
 import renderOverlay from "roamjs-components/util/renderOverlay";
 import state from "./state";
 
-const Dialog = () => {
-  const [isOpen, setIsOpen] = useState(true);
+const FRDialog = ({ isOpen, onClose }) => {
   return (
-    <>
-      <FormDialog
-        isOpen={isOpen}
-        title={state.dialogTitle}
-        onClose={() => setIsOpen(false)}
-        onSubmit={() => state.handleSubmit(...state.submitParams)}
-        content={state.resultsJSX}
-        className={"fr-dialog"}
-      />
-    </>
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title={state.dialogTitle}
+      enforceFocus={false}
+      autoFocus={false}
+      className="fr-dialog"
+    >
+      <div className={Classes.DIALOG_BODY}>{state.resultsJSX}</div>
+      <div className={Classes.DIALOG_FOOTER}>
+        <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+          <Button text={state.cancelButtonTitle} onClick={onClose} />
+          <Button
+            text={state.submitButtonTitle}
+            intent={Intent.PRIMARY}
+            onClick={() => {
+              state.handleSubmit(...state.submitParams);
+              onClose();
+            }}
+          />
+        </div>
+      </div>
+    </Dialog>
   );
 };
 
-// export const myDialog = (test) => {
-//   ReactDOM.render(<Dialog />, document.querySelector(".roam-article"));
-// };
-
-export function displayForm(
-  submitButtonTitle = "Copy to clipboard",
-  contentClass
-) {
+export function displayForm(submitButtonTitle = "Copy to clipboard") {
+  state.submitButtonTitle = submitButtonTitle;
+  state.cancelButtonTitle = "Close";
   renderOverlay({
-    Overlay: Dialog,
+    Overlay: FRDialog,
   });
-
-  let dialog = document.querySelector(`.bp3-dialog:has(${contentClass})`);
-  let cancelButton = dialog.querySelector(".bp3-button-text");
-  cancelButton.innerText = "Close";
-  let submitButton = dialog.querySelector(".bp3-button.bp3-intent-primary");
-  submitButton.innerText = submitButtonTitle;
 }

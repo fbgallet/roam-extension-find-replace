@@ -40,9 +40,20 @@ The search engine support regular expressions, so that any kind of pattern can b
 
 ![F R - Search in graph](https://user-images.githubusercontent.com/74436347/202821174-4167e496-bbc5-4d32-afaf-160701c260e2.png)
 
-Open the global search box with `Find & Replace: Whole graph search` in the command Palette (just enter 'wg'). It provides very quickly an overview of the results, even in large amounts (like 2000 matches in 2 seconds), if you display them in plain text with `🔎︎`. Then you can easely open any of them in the right sidebar by pressing the `➕` at the end of each block. As with search in page, you can copy the results to clipboard, as plain text or as block references. You can also open them all in the sidebar with the button `🔎︎◨`
+Open the global search box with `Find & Replace: Whole graph search` in the command Palette (just enter 'wg'). It provides very quickly an overview of the results, even in large amounts (like 2000 matches in 2 seconds), if you display them in plain text with `🔎︎`. As with search in page, you can copy the results to clipboard, as plain text or as block references.
 
-In option, search results can be sorted by page or page last edit date (the most recent first).
+### Results dialog
+
+When you click `🔎︎`, matching blocks are displayed in a dedicated results dialog with the following features:
+
+- **Two view modes**: *Text* (raw content, instant) and *Rendered* (full Roam rendering with links, embeds, formatting). Rendered mode uses lazy loading to avoid freezing the UI on large result sets, and paginates to 100 blocks per page with prev/next navigation.
+- **Page path toggle** (rendered mode): show or hide the breadcrumb path above each block — toggled instantly via CSS, no re-rendering needed.
+- **Sort**: by page name (alphabetical), by match count per page (descending), or by last edit date (most recent first). The date sort shows a flat list independent of page grouping.
+- **Filter**: a live filter input narrows the displayed results by page name or block content.
+- **Collapse/Expand**: page groups can be collapsed individually or all at once with a single button (not available in date sort mode).
+- **Block selection**: each block has a checkbox; a footer "Select all / Deselect all" checkbox controls all visible blocks at once.
+- **Open in sidebar**: selected blocks can be opened all at once in the right sidebar with the footer button.
+- **Copy to clipboard**: the dialog's submit button copies all results as plain text (page names + resolved block content).
 
 ## - Find & Replace
 
@@ -65,7 +76,7 @@ It can also be used to replace different writings of a word in a given alias. Su
 
 With great caution ⚠️, you can search and replace some string in the whole graph. Don't forget that a string can be a subset of another string that we haven't imagined. The operation can theoretically be undone (with the Undo command below, not with Cmd-Ctrl + Z), but only immediately, not after a graph reload or after other find and research operations, unless you click on 'display changed blocks in sidebar'. A warning message will request confirmation and indicate the number of blocks that will be modified.
 
-For more safety, the new `🔎︎` feature allows you to have a quick overview of blocks that will be changed before doing it.
+For more safety, the `🔎︎` feature allows you to have a quick overview of blocks that will be changed before doing it. The results dialog (described above in the *Search in the whole graph* section) is the same interactive component: you can filter, sort, switch between text and rendered view, select blocks, and open them in the sidebar before committing to any replacement.
 
 ### `Find & Replace: Insert last changed blocks (references)` command:
 

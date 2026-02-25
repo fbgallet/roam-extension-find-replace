@@ -1,5 +1,4 @@
 import iziToast from "izitoast";
-import getUrl from "roamjs-components/dom/getRoamUrl";
 import {
   updateBlock,
   getBlockContentByUid,
@@ -11,10 +10,8 @@ import {
   moveChildBlocks,
   getPageUidByNameOrCreateIt,
   groupMatchesByPage,
-  resolveReferences,
   isRegex,
   createBlockOnDNP,
-  getPageNameByPageUid,
   getAllBlockData,
   getPagesNamesMatchingRegex,
   replaceSubstringOrCaptureGroup,
@@ -32,6 +29,9 @@ import {
   displayWholeGraphCountInTitle,
 } from "./notifications";
 import Node from "./nodeModel";
+import React from "react";
+import BlockResultsList from "./components/BlockResultsList";
+import PageNamesList from "./components/PageNamesList";
 
 // Dependencies injected from index.js to avoid circular imports
 let _initializeGlobalVar,
@@ -513,8 +513,9 @@ export const displayResultsInPlainText = (
   findInput,
 ) => {
   let treeArray;
+  const isMatchesOnly = state.extractMatchesOnly && isRegex(findInput);
 
-  if (state.extractMatchesOnly && isRegex(findInput)) {
+  if (isMatchesOnly) {
     if (state.matchingStringsArray[0].groups.length > 0) {
       state.matchingStringsArray.forEach((match) => {
         match.replace && (match.content = match.replace);
@@ -527,145 +528,36 @@ export const displayResultsInPlainText = (
   } else {
     treeArray = groupMatchesByPage(state.matchArray);
   }
-  state.resultsJSX = getResultsDisplayJSX(treeArray);
-  state.dialogTitle = <h4>{dialogCaption}:</h4>;
-  state.handleSubmit = (toCopy) => {
-    navigator.clipboard.writeText(toCopy);
-  };
-  state.submitParams = [state.textToCopy];
-  displayForm("Copy to clipboard", ".block-list");
-  let dialog = document.querySelector(".bp3-dialog:has(.block-list)");
-  let liIterator = dialog.querySelectorAll("li");
-  if (promptParameters.length >= 3 && promptParameters[2] == "AND") {
-    promptParameters[0] = promptParameters[0].or;
-  }
-  if (!state.extractMatchesOnly || !isRegex(findInput)) {
-    for (const node of liIterator) {
-      _highlightString(node.firstChild, promptParameters[0]);
-    }
-    _highlightAllMatches(true);
-  }
-};
-
-const getResultsDisplayJSX = (treeArray) => {
-  state.textToCopy = "";
-
-  let url = getUrl() + "/page/";
-  return (
-    <div className="block-list">
-      <ul>
-        {treeArray.map((node) => {
-          let pageMention = "[[" + getPageNameByPageUid(node.page) + "]]"; // getPageTitleByPage
-          state.textToCopy += pageMention + "\n";
-          return (
-            <li
-              style={{
-                listStyle: "none",
-              }}
-            >
-              {pageMention}
-              {node.blocks.map((block) => {
-                let blockRef = "((" + block.uid + "))";
-                //let blockUrl = url + block.uid;
-                let display = block.content + "\n";
-                if (display.includes("```"))
-                  display =
-                    display.substring(0, state.codeBlockLimit) + " (...)";
-                else {
-                  display = resolveReferences(display, [block.uid]);
-                  state.textToCopy += "  - " + display + "\n";
-                }
-                return (
-                  <ul
-                    style={{
-                      marginTop: "3px",
-                    }}
-                  >
-                    <li
-                      title={blockRef}
-                      style={{
-                        listStyleType: "disc",
-                      }}
-                    >
-                      {display}
-                      <button
-                        class="add-to-sidebar"
-                        title="Open this block in the right sidebar"
-                        onClick={() =>
-                          window.roamAlphaAPI.ui.rightSidebar.addWindow({
-                            window: { type: "block", "block-uid": block.uid },
-                          })
-                        }
-                      >
-                        ➕
-                      </button>
-                    </li>
-                  </ul>
-                );
-              })}
-              <br />
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+  state.resultsJSX = (
+    <BlockResultsList
+      treeArray={treeArray}
+      promptParameters={promptParameters}
+      isMatchesOnly={isMatchesOnly}
+      onHighlight={_highlightString}
+      onHighlightAll={_highlightAllMatches}
+    />
   );
+  state.dialogTitle = <h4>{dialogCaption}:</h4>;
+  state.handleSubmit = () => {
+    navigator.clipboard.writeText(state.textToCopy);
+  };
+  state.submitParams = [];
+  displayForm("Copy to clipboard");
 };
 
 const displayPageNamesResults = (find, replace, toast) => {
-  let selectedElts = state.matchArray;
-  state.submitParams = [selectedElts];
-
-  let isAllSelected = selectedElts.length === state.matchArray.length;
-
-  const handleSelectElt = (evt, element) => {
-    selectedElts = selectedElts.includes(element)
-      ? selectedElts.filter((e) => e !== element)
-      : [...selectedElts, element];
-    state.submitParams = [selectedElts];
-  };
-
-  const handleSelectAll = (e, force) => {
-    const checkboxes = document
-      .querySelector(".page-list")
-      .querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach((cb) => {
-      let newState = e?.target?.checked || force;
-      cb.checked = newState;
-    });
-    selectedElts = !force && isAllSelected ? [] : [...state.matchArray];
-    isAllSelected = selectedElts.length === state.matchArray.length;
-    state.submitParams = [selectedElts];
-  };
+  state.submitParams = [[...state.matchArray]];
 
   state.resultsJSX = (
-    <div className="page-list">
-      <div>
-        <label className="select-all-pages">
-          <input type="checkbox" onChange={handleSelectAll} />
-          Select All/None
-        </label>
-      </div>
-      <ul>
-        {state.matchArray.map((match) => (
-          <li>
-            <input
-              type="checkbox"
-              onChange={(e) => handleSelectElt(e, match)}
-              className="page-checkbox"
-            />
-            {"[[" +
-              match.title +
-              "]] ➡︎ [[" +
-              replaceSubstringOrCaptureGroup(match.title, find, replace) +
-              "]]"}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <PageNamesList
+      matchArray={state.matchArray}
+      find={find}
+      replace={replace}
+      replaceFunc={replaceSubstringOrCaptureGroup}
+    />
   );
   state.dialogTitle = <h4>{state.matchArray.length} matching page names</h4>;
-  state.handleSubmit = () => {
+  state.handleSubmit = (selectedElts) => {
     warningPopupWholeGraph(
       find,
       replace,
@@ -674,11 +566,8 @@ const displayPageNamesResults = (find, replace, toast) => {
       toast,
       selectedElts,
     );
-    //wholeGraphPageNameProcessing([find, replace], true, toast, selectedElts);
   };
-  displayForm("Replace", ".page-list");
-
-  handleSelectAll(null, true);
+  displayForm("Replace");
 };
 
 const warningPopupWholeGraph = async (

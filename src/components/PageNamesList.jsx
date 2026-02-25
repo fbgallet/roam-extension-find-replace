@@ -1,49 +1,52 @@
-const PageNamesList = ({
-  matchArray,
-  elementsSelectionnes,
-  setElementsSelectionnes,
-}) => {
-  const toutSelectionne = elementsSelectionnes.length === matchArray.length;
+import React, { useState, useEffect, useCallback } from "react";
+import { Checkbox } from "@blueprintjs/core";
+import state from "../state";
 
-  const gererChangementElement = (element) => {
-    setElementsSelectionnes((prev) =>
-      prev.includes(element)
-        ? prev.filter((e) => e !== element)
-        : [...prev, element]
+const PageNamesList = ({ matchArray, find, replace, replaceFunc }) => {
+  const [selectedItems, setSelectedItems] = useState(() => [...matchArray]);
+
+  // Keep state.submitParams in sync with selection
+  useEffect(() => {
+    state.submitParams = [selectedItems];
+  }, [selectedItems]);
+
+  const allSelected = selectedItems.length === matchArray.length;
+  const someSelected = selectedItems.length > 0 && !allSelected;
+
+  const toggleItem = useCallback((item) => {
+    setSelectedItems((prev) =>
+      prev.includes(item) ? prev.filter((e) => e !== item) : [...prev, item]
     );
-  };
+  }, []);
 
-  const gererChangementTout = () => {
-    setElementsSelectionnes(toutSelectionne ? [] : [...matchArray]);
-  };
+  const toggleAll = useCallback(() => {
+    setSelectedItems(allSelected ? [] : [...matchArray]);
+  }, [allSelected, matchArray]);
 
   return (
-    <div>
-      <div className="mb-2">
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            checked={toutSelectionne}
-            onChange={gererChangementTout}
-            className="mr-2"
-          />
-          Tout sélectionner
-        </label>
-      </div>
+    <div className="page-list">
+      <Checkbox
+        checked={allSelected}
+        indeterminate={someSelected}
+        onChange={toggleAll}
+        label={allSelected ? "Deselect all" : "Select all"}
+        className="select-all-pages"
+      />
       <ul>
-        {matchArray.map((match) => (
-          <li>
-            <input
-              type="checkbox"
-              checked={elementsSelectionnes.includes(match)}
-              onChange={() => gererChangementElement(match)}
-              className="mr-2"
+        {matchArray.map((match, i) => (
+          <li key={match.title || i}>
+            <Checkbox
+              checked={selectedItems.includes(match)}
+              onChange={() => toggleItem(match)}
+              className="page-checkbox"
+              label={
+                "[[" +
+                match.title +
+                "]] \u27A1\uFE0E [[" +
+                replaceFunc(match.title, find, replace) +
+                "]]"
+              }
             />
-            {"[[" +
-              match.title +
-              "]] => [[" +
-              replaceSubstringOrCaptureGroup(match.title, find, replace) +
-              "]]"}
           </li>
         ))}
       </ul>
