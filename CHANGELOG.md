@@ -1,3 +1,9 @@
+## v.10 (February 2026)
+
+### New features:
+
+- Input history with favorites: all text inputs (find, replace, prepend, append) now remember the last 10 strings used. Click the history icon on the right of any input to pick from recent values. Pin entries as favorites (⭐) to keep them permanently at the top of the list, beyond the 10-item limit. History is persisted across sessions.
+
 ## v.9 (January 1st, 2025)
 
 ### New features:

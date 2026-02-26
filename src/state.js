@@ -43,6 +43,9 @@ const state = {
   submitParams: undefined,
   handleSubmit: undefined,
 
+  // When true, getNodes() preserves expandedNodesUid instead of re-reading the page
+  frozenNodes: false,
+
   // Panel position preset (setting) and persistence helpers
   panelPosition: "top right",
   panelInitialXY: null,           // {x, y} loaded from extensionAPI on startup

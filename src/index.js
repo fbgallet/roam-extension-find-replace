@@ -4,7 +4,7 @@ import { normalizeMention } from "./utils";
 
 import { insertChangedBlocks } from "./copyResults";
 import state from "./state";
-import { infoToast } from "./notifications";
+import { openPanel } from "./panelBridge";
 import {
   findAndReplaceInWholeGraph,
   openPageBlockConversionPanel,
@@ -41,8 +41,8 @@ import {
   appendPrepend,
   appendPrependDialog,
   doAppendPrepend,
+  doFormatChange,
   changeBlockFormat,
-  changeBlockFormatPrompt,
   setBlockOperationsDeps,
 } from "./blockOperations";
 import {
@@ -164,6 +164,27 @@ const panelConfig = {
   tabTitle: "Find and replace",
   settings: [
     {
+      id: "panelPositionSetting",
+      name: "Search panel default position",
+      description:
+        "Initial position of the search/replace panel when no saved position exists (or saved position is off-screen):",
+      action: {
+        type: "select",
+        items: [
+          "top right",
+          "top left",
+          "bottom right",
+          "bottom left",
+          "center",
+          "center left",
+          "center right",
+        ],
+        onChange: (evt) => {
+          state.panelPosition = evt;
+        },
+      },
+    },
+    {
       id: "colorSetting",
       name: "Highlights color",
       description: "Color of the highlights of matching strings:",
@@ -269,27 +290,6 @@ const panelConfig = {
         type: "input",
         onChange: (evt) => {
           state.codeBlockLimit = evt.target.value;
-        },
-      },
-    },
-    {
-      id: "panelPositionSetting",
-      name: "Search panel default position",
-      description:
-        "Initial position of the search/replace panel when no saved position exists (or saved position is off-screen):",
-      action: {
-        type: "select",
-        items: [
-          "top right",
-          "top left",
-          "bottom right",
-          "bottom left",
-          "center",
-          "center left",
-          "center right",
-        ],
-        onChange: (evt) => {
-          state.panelPosition = evt;
         },
       },
     },
@@ -419,14 +419,33 @@ export default {
       await extensionAPI.settings.set("panelPositionSetting", "top right");
     state.panelPosition = extensionAPI.settings.get("panelPositionSetting");
 
+    // Initialize input history storage
+    if (extensionAPI.settings.get("historyFind") == null)
+      await extensionAPI.settings.set("historyFind", {
+        history: [],
+        favorites: [],
+      });
+    if (extensionAPI.settings.get("historyReplace") == null)
+      await extensionAPI.settings.set("historyReplace", {
+        history: [],
+        favorites: [],
+      });
+    if (extensionAPI.settings.get("historyPrefixSuffix") == null)
+      await extensionAPI.settings.set("historyPrefixSuffix", {
+        history: [],
+        favorites: [],
+      });
+
     // Load last saved panel XY position (persisted across sessions)
     const savedXY = extensionAPI.settings.get("panelLastXY");
     if (
       savedXY &&
       typeof savedXY.x === "number" &&
       typeof savedXY.y === "number" &&
-      savedXY.x >= 0 && savedXY.x < window.innerWidth - 50 &&
-      savedXY.y >= 0 && savedXY.y < window.innerHeight - 50
+      savedXY.x >= 0 &&
+      savedXY.x < window.innerWidth - 50 &&
+      savedXY.y >= 0 &&
+      savedXY.y < window.innerHeight - 50
     ) {
       state.panelInitialXY = savedXY;
     }
@@ -477,14 +496,12 @@ export default {
     extensionAPI.ui.commandPalette.addCommand({
       label: formLabel,
       callback: () => {
-        getSelection();
-        if (state.expandedNodesUid.length == 0) {
-          infoToast(
-            "Some blocks have to be selected to apply bulk change format.",
-          );
-          return;
-        }
-        changeBlockFormatPrompt(formLabel);
+        state.changesNb = 0;
+        state.formatChange = false;
+        openPanel({
+          mode: "format",
+          label: "Bulk change format of selected blocks",
+        });
       },
     });
     extensionAPI.ui.commandPalette.addCommand({
@@ -544,11 +561,7 @@ export default {
     extensionAPI.ui.commandPalette.addCommand({
       label: "Find & Replace: Undo last operation",
       callback: async () => {
-        await undoLastBulkOperation(
-          state.changesNbBackup,
-          state.inputBackup.length > 1 && state.inputBackup[1],
-          state.inputBackup.length && state.inputBackup[0],
-        );
+        await undoLastBulkOperation();
       },
     });
     extensionAPI.ui.commandPalette.addCommand({
@@ -636,18 +649,30 @@ export default {
     _panelRoot = root;
 
     const callbacks = {
-      // Page/workspace search
-      onActualizeHighlights: (findInput, ci, wo, expand, sl) =>
-        actualizeHighlights(findInput, ci, wo, expand, sl),
+      extensionAPI,
+      // Page/workspace/selection search
+      onActualizeHighlights: (findInput, ci, wo, expand, sl, scope) => {
+        state.frozenNodes = scope === "selection";
+        actualizeHighlights(findInput, ci, wo, expand, sl);
+      },
       onHighlightNext: (shift) => highlightNextMatch(shift),
-      onRefresh: (findInput, ci, wo, expand, sl) =>
-        actualizeHighlights(findInput, ci, wo, expand, sl),
+      onRefresh: (findInput, ci, wo, expand, sl, scope) => {
+        state.frozenNodes = scope === "selection";
+        actualizeHighlights(findInput, ci, wo, expand, sl);
+      },
       onRemoveHighlights: () => removeHighlightedNodes(),
       onCopyRefs: (findInput, replaceInput, ci, sl, mode) =>
         copyMatchingUidsToClipboard(findInput, replaceInput, ci, sl, mode),
       onDisplayResults: (findInput, replaceInput, ci, wo, sl) => {
-        const promptParams = normalizeInputRegex(findInput, replaceInput, ci, wo, sl);
-        if (promptParams) displaySearchResustsInPlainText(promptParams, findInput);
+        const promptParams = normalizeInputRegex(
+          findInput,
+          replaceInput,
+          ci,
+          wo,
+          sl,
+        );
+        if (promptParams)
+          displaySearchResustsInPlainText(promptParams, findInput);
       },
       onHelp: () => helpToast(),
       // Page find & replace
@@ -656,17 +681,42 @@ export default {
       onReplaceAll: (findInput, replaceInput, ci, wo, sl) =>
         doReplaceAll(findInput, replaceInput, ci, wo, sl),
       // Lifecycle
-      onSearchClose: (findInput, ci, wo, expand, workspace) =>
-        onSearchClose(findInput, ci, wo, expand, workspace),
-      onFindReplaceClose: (findInput, replaceInput, ci, wo, expand, workspace) =>
-        onFindReplaceClose(findInput, replaceInput, ci, wo, expand, workspace),
+      onSearchClose: (findInput, ci, wo, expand, workspace) => {
+        state.frozenNodes = false;
+        onSearchClose(findInput, ci, wo, expand, workspace);
+      },
+      onFindReplaceClose: (
+        findInput,
+        replaceInput,
+        ci,
+        wo,
+        expand,
+        workspace,
+      ) => {
+        state.frozenNodes = false;
+        onFindReplaceClose(findInput, replaceInput, ci, wo, expand, workspace);
+      },
       // Graph actions
       onGraphReplace: (findInput, replaceInput, ci, wo, sl) =>
         doGraphReplace(findInput, replaceInput, ci, wo, sl),
       onGraphReplacePageNames: (findInput, replaceInput) =>
         doGraphReplacePageNames(findInput, replaceInput),
-      onGraphDisplayResults: (findInput, ci, wo, sl, graphSubMode, replaceInput) =>
-        doGraphDisplayResults(findInput, ci, wo, sl, graphSubMode, replaceInput),
+      onGraphDisplayResults: (
+        findInput,
+        ci,
+        wo,
+        sl,
+        graphSubMode,
+        replaceInput,
+      ) =>
+        doGraphDisplayResults(
+          findInput,
+          ci,
+          wo,
+          sl,
+          graphSubMode,
+          replaceInput,
+        ),
       onGraphDisplayResultsSidebar: (findInput, ci, wo, sl, graphSubMode) =>
         doGraphDisplayResultsSidebar(findInput, ci, wo, sl, graphSubMode),
       onGraphCopyRefs: (findInput, replaceInput, ci, wo, sl, graphSubMode) =>
@@ -680,9 +730,16 @@ export default {
       onCheckSelection: () => {
         // Check both multiselect APIs before calling getSelection()
         const dragSelected = document.querySelectorAll(".block-highlight-blue");
-        const cmdSelected = window.roamAlphaAPI.ui.individualMultiselect.getSelectedUids?.() ?? [];
-        const multiSelected = window.roamAlphaAPI.ui.multiselect.getSelected?.() ?? [];
-        if (dragSelected.length === 0 && cmdSelected.length === 0 && multiSelected.length === 0) {
+        const cmdSelected =
+          window.roamAlphaAPI.ui.individualMultiselect.getSelectedUids?.() ??
+          [];
+        const multiSelected =
+          window.roamAlphaAPI.ui.multiselect.getSelected?.() ?? [];
+        if (
+          dragSelected.length === 0 &&
+          cmdSelected.length === 0 &&
+          multiSelected.length === 0
+        ) {
           state.expandedNodesUid = [];
           return 0;
         }
@@ -690,18 +747,28 @@ export default {
         return state.expandedNodesUid.length;
       },
       onAppendPrepend: (prefix, suffix) => doAppendPrepend(prefix, suffix),
+      onFormatChange: (h, a, v, caseChange) =>
+        doFormatChange(h, a, v, caseChange),
       // Page⇔Block conversion tab
       onPageToBlock: (findInput, replaceInput, moveContent) =>
         doGraphPageToBlock(findInput, replaceInput, moveContent),
       onBlockToPage: (findInput, replaceInput, moveContent) =>
         doGraphBlockToPage(findInput, replaceInput, moveContent),
-      onPageBlockDisplayResults: (findInput, replaceInput, direction, moveContent) =>
-        doPageBlockDisplayResults(findInput, replaceInput, direction, moveContent),
+      onPageBlockDisplayResults: (
+        findInput,
+        replaceInput,
+        direction,
+        moveContent,
+      ) =>
+        doPageBlockDisplayResults(
+          findInput,
+          replaceInput,
+          direction,
+          moveContent,
+        ),
     };
 
-    root.render(
-      React.createElement(UnifiedSearchPanel, { callbacks }),
-    );
+    root.render(React.createElement(UnifiedSearchPanel, { callbacks }));
 
     console.log("Find & replace loaded.");
   },

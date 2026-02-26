@@ -223,3 +223,7 @@ button.add-to-sidebar:hover {
 .bp3-dialog .page-list > ul > li {
   padding-bottom: 5px;
 }
+
+.bp3-toast.fr-undo-toast {
+  opacity: 0.75;
+}

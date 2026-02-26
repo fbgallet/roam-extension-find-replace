@@ -126,29 +126,38 @@ export const changeBlockFormat = async (node, headingLevel, alignment, view) => 
   });
 };
 
+/**
+ * Called by the panel's onFormatChange callback.
+ * Applies heading/alignment/view/case changes to all selected nodes.
+ */
+export const doFormatChange = async (h, a, v, caseChange) => {
+  state.changesNb = 0;
+  if (h != "noChange" || a != "noChange" || v != "noChange") {
+    state.lastOperation = "Change format";
+    state.formatChange = true;
+    const promptParameters = [h, a, v];
+    while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
+    await _selectedNodesProcessing(
+      state.expandedNodesUid,
+      promptParameters,
+      changeBlockFormat,
+    );
+  }
+  if (caseChange != "noChange") {
+    state.lastOperation = "Change case";
+    await caseBulkChange(caseChange);
+  }
+  state.selectedBlocks = [];
+  state.seletionBlue = false;
+  _initializeGlobalVar(true);
+  state.changesNbBackup = state.changesNb;
+};
+
 export const changeBlockFormatPrompt = async function () {
   state.changesNb = 0;
 
   const onApply = async (h, a, v, caseChange) => {
-    if (h != "noChange" || a != "noChange" || v != "noChange") {
-      state.lastOperation = "Change format";
-      state.formatChange = true;
-      const promptParameters = [h, a, v];
-      while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
-      await _selectedNodesProcessing(
-        state.expandedNodesUid,
-        promptParameters,
-        changeBlockFormat,
-      );
-    }
-    if (caseChange != "noChange") {
-      state.lastOperation = "Change case";
-      await caseBulkChange(caseChange);
-    }
-    state.selectedBlocks = [];
-    state.seletionBlue = false;
-    _initializeGlobalVar(true);
-    state.changesNbBackup = state.changesNb;
+    await doFormatChange(h, a, v, caseChange);
   };
 
   renderOverlay({

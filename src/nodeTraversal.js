@@ -87,6 +87,13 @@ export function getSelection() {
 }
 
 export async function getNodes() {
+  // When frozenNodes is set, skip re-reading — use the already-populated selection
+  if (state.frozenNodes) {
+    if (state.excludeDuplicate) {
+      state.expandedNodesUid = removeDuplicateBlocks(state.expandedNodesUid);
+    }
+    return;
+  }
   if (!state.seletionBlue) {
     getSelection();
     if (state.selectedBlocks.length != 0 && !state.workspace) {

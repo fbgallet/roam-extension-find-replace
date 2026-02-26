@@ -27,6 +27,17 @@ function getToasterSync() {
   return _toasterSync;
 }
 
+// Bottom-right toaster for non-blocking undo/redo notifications
+let _undoToasterSync = null;
+export function getUndoToaster() {
+  if (_undoToasterSync) return _undoToasterSync;
+  _undoToasterSync = Toaster.create({
+    position: Position.BOTTOM_RIGHT,
+    maxToasts: 2,
+  });
+  return _undoToasterSync;
+}
+
 export const errorToast = (message) => {
   getToasterSync().show({
     message: React.createElement(

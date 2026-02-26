@@ -1,9 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-} from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Button,
   ButtonGroup,
@@ -14,8 +9,16 @@ import {
   Tabs,
   Tooltip,
 } from "@blueprintjs/core";
-import { subscribe, closePanel, updatePanelField, getPanelState } from "../panelBridge";
+import { subscribe, closePanel } from "../panelBridge";
 import state from "../state";
+import { FormatChangeBody } from "./FormatChangeDialog";
+import HistoryPopover from "./HistoryPopover";
+import {
+  HISTORY_FIND,
+  HISTORY_REPLACE,
+  HISTORY_PREFIX_SUFFIX,
+  addToHistory,
+} from "../historyStorage";
 import "./UnifiedSearchPanel.css";
 
 const PANEL_WIDTH = 400;
@@ -26,14 +29,25 @@ function getPositionFromPreset(preset) {
   const W = window.innerWidth;
   const H = window.innerHeight;
   switch (preset) {
-    case "top left":    return { x: MARGIN, y: MARGIN + 40 };
-    case "top right":   return { x: W - PANEL_WIDTH - MARGIN, y: MARGIN + 40 };
-    case "bottom left": return { x: MARGIN, y: H - PANEL_HEIGHT_APPROX - MARGIN };
-    case "bottom right":return { x: W - PANEL_WIDTH - MARGIN, y: H - PANEL_HEIGHT_APPROX - MARGIN };
-    case "center":      return { x: (W - PANEL_WIDTH) / 2, y: (H - PANEL_HEIGHT_APPROX) / 2 };
-    case "center left": return { x: MARGIN, y: (H - PANEL_HEIGHT_APPROX) / 2 };
-    case "center right":return { x: W - PANEL_WIDTH - MARGIN, y: (H - PANEL_HEIGHT_APPROX) / 2 };
-    default:            return { x: W - PANEL_WIDTH - MARGIN, y: MARGIN + 40 };
+    case "top left":
+      return { x: MARGIN, y: MARGIN + 40 };
+    case "top right":
+      return { x: W - PANEL_WIDTH - MARGIN, y: MARGIN + 40 };
+    case "bottom left":
+      return { x: MARGIN, y: H - PANEL_HEIGHT_APPROX - MARGIN };
+    case "bottom right":
+      return {
+        x: W - PANEL_WIDTH - MARGIN,
+        y: H - PANEL_HEIGHT_APPROX - MARGIN,
+      };
+    case "center":
+      return { x: (W - PANEL_WIDTH) / 2, y: (H - PANEL_HEIGHT_APPROX) / 2 };
+    case "center left":
+      return { x: MARGIN, y: (H - PANEL_HEIGHT_APPROX) / 2 };
+    case "center right":
+      return { x: W - PANEL_WIDTH - MARGIN, y: (H - PANEL_HEIGHT_APPROX) / 2 };
+    default:
+      return { x: W - PANEL_WIDTH - MARGIN, y: MARGIN + 40 };
   }
 }
 
@@ -82,12 +96,13 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   const [mode, setMode] = useState("search");
   const [graphSubMode, setGraphSubMode] = useState("search");
   const [conversionDirection, setConversionDirection] = useState("pageToBlock");
-  const [label, setLabel] = useState("");
   const [matchLabel, setMatchLabel] = useState("");
 
   // ── Pre/Append selection state ──
   // null = not yet checked; number = count from last check
   const [selectionCount, setSelectionCount] = useState(null);
+  // Warning shown when user clicks "Blocks" scope but no selection found
+  const [selectionWarning, setSelectionWarning] = useState(false);
 
   // ── Input state ──
   const [findInput, setFindInput] = useState("");
@@ -101,6 +116,12 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   // ── Append/Prepend tab inputs ──
   const [prefixInput, setPrefixInput] = useState("");
   const [suffixInput, setSuffixInput] = useState("");
+
+  // ── Format tab inputs ──
+  const [fmtHeading, setFmtHeading] = useState("noChange");
+  const [fmtAlignment, setFmtAlignment] = useState("noChange");
+  const [fmtView, setFmtView] = useState("noChange");
+  const [fmtCaseChange, setFmtCaseChange] = useState("noChange");
 
   // ── Drag state ──
   const [position, setPosition] = useState(getInitialPosition);
@@ -126,11 +147,10 @@ const UnifiedSearchPanel = ({ callbacks }) => {
       if (justOpened) {
         // Only sync inputs when the panel transitions closed → open
         const newMode = snapshot.mode ?? "search";
-        setScope(snapshot.scope ?? "page");
+        const requestedScope = snapshot.scope ?? "page";
         setMode(newMode);
         setGraphSubMode(snapshot.graphSubMode ?? "search");
         setConversionDirection(snapshot.conversionDirection ?? "pageToBlock");
-        setLabel(snapshot.label ?? "");
         setFindInput(snapshot.findInput ?? "");
         setReplaceInput(snapshot.replaceInput ?? "");
         setCaseInsensitive(snapshot.caseInsensitive ?? false);
@@ -141,12 +161,20 @@ const UnifiedSearchPanel = ({ callbacks }) => {
         // Reset pre/append inputs on each open
         setPrefixInput("");
         setSuffixInput("");
-        // Auto-check selection when opening directly on the Pre/Append tab
-        if (newMode === "appendPrepend") {
-          setSelectionCount(null);
-          // Defer so the panel renders first, then fires the check
-          setTimeout(() => checkSelectionRef.current?.(), 0);
-        }
+        // Always check selection on open; auto-activate "selection" scope if blocks found
+        setSelectionCount(null);
+        setTimeout(() => {
+          const count = checkSelectionRef.current?.();
+          // For search/findReplace tabs, auto-switch to selection scope if blocks selected
+          if (
+            count > 0 &&
+            (newMode === "search" || newMode === "findReplace")
+          ) {
+            setScope("selection");
+          } else {
+            setScope(requestedScope);
+          }
+        }, 0);
       }
 
       // matchLabel updates while the panel is open (from displayMatchCountInTitle)
@@ -155,22 +183,30 @@ const UnifiedSearchPanel = ({ callbacks }) => {
     return unsub;
   }, []);
 
-  // ── Pre/Append: check selection via both Roam APIs ──
+  // ── Selection check: used by both Pre/Append tab and "Blocks" scope ──
   const checkSelection = useCallback(() => {
     const count = callbacks.onCheckSelection();
     setSelectionCount(count);
+    return count;
   }, [callbacks]);
 
-  // Keep ref in sync so the subscribe callback can call it
+  // Keep ref in sync so the subscribe callback (outside React render cycle) can call it
   checkSelectionRef.current = checkSelection;
 
-  // Auto-check when switching to the Pre/Append tab
+  // Auto-check when switching to the Pre/Append or Format tab
   useEffect(() => {
-    if (isOpen && mode === "appendPrepend") {
+    if (isOpen && (mode === "appendPrepend" || mode === "format")) {
       setSelectionCount(null);
       checkSelection();
     }
   }, [mode, isOpen]);
+
+  // When user manually switches to "selection" scope, re-check
+  useEffect(() => {
+    if (isOpen && scope === "selection") {
+      checkSelection();
+    }
+  }, [scope, isOpen]);
 
   // ── Keyboard arrow listener (page/workspace scope, search/findReplace tabs only) ──
   useEffect(() => {
@@ -198,56 +234,86 @@ const UnifiedSearchPanel = ({ callbacks }) => {
     };
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
-  }, [isOpen, findInput, replaceInput, caseInsensitive, wordOnly, expandToHighlight]);
+  }, [
+    isOpen,
+    findInput,
+    replaceInput,
+    caseInsensitive,
+    wordOnly,
+    expandToHighlight,
+  ]);
 
   // ── Drag logic ──
-  const onHeaderMouseDown = useCallback((e) => {
-    if (e.button !== 0) return;
-    dragOffset.current = { x: e.clientX - position.x, y: e.clientY - position.y };
-    let lastPos = { x: position.x, y: position.y };
-    const onMouseMove = (e) => {
-      if (!dragOffset.current) return;
-      lastPos = {
-        x: e.clientX - dragOffset.current.x,
-        y: e.clientY - dragOffset.current.y,
+  const onHeaderMouseDown = useCallback(
+    (e) => {
+      if (e.button !== 0) return;
+      dragOffset.current = {
+        x: e.clientX - position.x,
+        y: e.clientY - position.y,
       };
-      setPosition(lastPos);
-    };
-    const onMouseUp = () => {
-      dragOffset.current = null;
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      state.panelInitialXY = lastPos;
-      if (state.savePanelXY) state.savePanelXY(lastPos.x, lastPos.y);
-    };
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  }, [position]);
+      let lastPos = { x: position.x, y: position.y };
+      const onMouseMove = (e) => {
+        if (!dragOffset.current) return;
+        lastPos = {
+          x: e.clientX - dragOffset.current.x,
+          y: e.clientY - dragOffset.current.y,
+        };
+        setPosition(lastPos);
+      };
+      const onMouseUp = () => {
+        dragOffset.current = null;
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+        state.panelInitialXY = lastPos;
+        if (state.savePanelXY) state.savePanelXY(lastPos.x, lastPos.y);
+      };
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    },
+    [position],
+  );
 
   // ── Handlers ──
-  const handleFindChange = useCallback((e) => {
-    const value = e.target.value;
-    setFindInput(value);
-    if (scope === "graph" || scope === "pageTitles") return;
+  const handleFindChange = useCallback(
+    (e) => {
+      const value = e.target.value;
+      setFindInput(value);
+      if (scope === "graph" || scope === "pageTitles") return;
 
-    clearTimeout(debounceRef.current);
-    inputChangesRef.current++;
-    const capturedChange = inputChangesRef.current;
-    const len = value.length;
-    const timeout = len > 2 ? 100 : 800;
+      clearTimeout(debounceRef.current);
+      inputChangesRef.current++;
+      const capturedChange = inputChangesRef.current;
+      const len = value.length;
+      const timeout = len > 2 ? 100 : 800;
 
-    debounceRef.current = setTimeout(() => {
-      if (inputChangesRef.current !== capturedChange) return;
-      if (len > 1) {
-        inputChangesRef.current++;
-        callbacks.onActualizeHighlights(value, caseInsensitive, wordOnly, expandToHighlight, searchLogic);
-      }
-    }, timeout);
-  }, [scope, caseInsensitive, wordOnly, expandToHighlight, searchLogic, callbacks]);
+      debounceRef.current = setTimeout(() => {
+        if (inputChangesRef.current !== capturedChange) return;
+        if (len > 1) {
+          inputChangesRef.current++;
+          callbacks.onActualizeHighlights(
+            value,
+            caseInsensitive,
+            wordOnly,
+            expandToHighlight,
+            searchLogic,
+            scope,
+          );
+        }
+      }, timeout);
+    },
+    [
+      scope,
+      caseInsensitive,
+      wordOnly,
+      expandToHighlight,
+      searchLogic,
+      callbacks,
+    ],
+  );
 
   const reHighlight = (fi, ci, wo, ex, sl) => {
     if (scope !== "graph" && scope !== "pageTitles" && fi.length > 1) {
-      callbacks.onActualizeHighlights(fi, ci, wo, ex, sl);
+      callbacks.onActualizeHighlights(fi, ci, wo, ex, sl, scope);
     }
   };
 
@@ -280,37 +346,96 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   };
 
   const handleRefresh = () => {
-    callbacks.onRefresh(findInput, caseInsensitive, wordOnly, expandToHighlight, searchLogic);
+    callbacks.onRefresh(
+      findInput,
+      caseInsensitive,
+      wordOnly,
+      expandToHighlight,
+      searchLogic,
+      scope,
+    );
   };
 
   const handleReplace = () => {
-    callbacks.onReplace(findInput, replaceInput, caseInsensitive, wordOnly, searchLogic);
+    addToHistory(callbacks.extensionAPI, HISTORY_FIND, findInput);
+    addToHistory(callbacks.extensionAPI, HISTORY_REPLACE, replaceInput);
+    callbacks.onReplace(
+      findInput,
+      replaceInput,
+      caseInsensitive,
+      wordOnly,
+      searchLogic,
+    );
   };
 
   const handleReplaceAll = () => {
-    callbacks.onReplaceAll(findInput, replaceInput, caseInsensitive, wordOnly, searchLogic);
+    addToHistory(callbacks.extensionAPI, HISTORY_FIND, findInput);
+    addToHistory(callbacks.extensionAPI, HISTORY_REPLACE, replaceInput);
+    callbacks.onReplaceAll(
+      findInput,
+      replaceInput,
+      caseInsensitive,
+      wordOnly,
+      searchLogic,
+    );
     handleClose();
   };
 
   const handleDisplayResults = () => {
+    addToHistory(callbacks.extensionAPI, HISTORY_FIND, findInput);
+    if (mode === "findReplace") addToHistory(callbacks.extensionAPI, HISTORY_REPLACE, replaceInput);
     if (scope === "graph") {
-      callbacks.onGraphDisplayResults(findInput, caseInsensitive, wordOnly, searchLogic, graphSubMode, mode === "findReplace" ? replaceInput : undefined);
+      callbacks.onGraphDisplayResults(
+        findInput,
+        caseInsensitive,
+        wordOnly,
+        searchLogic,
+        graphSubMode,
+        mode === "findReplace" ? replaceInput : undefined,
+      );
     } else if (scope === "pageTitles") {
       callbacks.onPageTitlesDisplayResults(findInput, replaceInput);
     } else {
-      callbacks.onDisplayResults(findInput, replaceInput, caseInsensitive, wordOnly, searchLogic);
+      callbacks.onDisplayResults(
+        findInput,
+        replaceInput,
+        caseInsensitive,
+        wordOnly,
+        searchLogic,
+      );
     }
   };
 
   const handleDisplayResultsSidebar = () => {
-    callbacks.onGraphDisplayResultsSidebar(findInput, caseInsensitive, wordOnly, searchLogic, graphSubMode);
+    addToHistory(callbacks.extensionAPI, HISTORY_FIND, findInput);
+    callbacks.onGraphDisplayResultsSidebar(
+      findInput,
+      caseInsensitive,
+      wordOnly,
+      searchLogic,
+      graphSubMode,
+    );
   };
 
   const handleCopyRefs = () => {
+    addToHistory(callbacks.extensionAPI, HISTORY_FIND, findInput);
     if (scope === "graph") {
-      callbacks.onGraphCopyRefs(findInput, replaceInput, caseInsensitive, wordOnly, searchLogic, graphSubMode);
+      callbacks.onGraphCopyRefs(
+        findInput,
+        replaceInput,
+        caseInsensitive,
+        wordOnly,
+        searchLogic,
+        graphSubMode,
+      );
     } else {
-      callbacks.onCopyRefs(findInput, replaceInput, caseInsensitive, searchLogic, mode);
+      callbacks.onCopyRefs(
+        findInput,
+        replaceInput,
+        caseInsensitive,
+        searchLogic,
+        mode,
+      );
     }
   };
 
@@ -319,14 +444,24 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   };
 
   const handleGraphReplace = () => {
+    addToHistory(callbacks.extensionAPI, HISTORY_FIND, findInput);
+    addToHistory(callbacks.extensionAPI, HISTORY_REPLACE, replaceInput);
     if (graphSubMode === "replace page names") {
       callbacks.onGraphReplacePageNames(findInput, replaceInput);
     } else {
-      callbacks.onGraphReplace(findInput, replaceInput, caseInsensitive, wordOnly, searchLogic);
+      callbacks.onGraphReplace(
+        findInput,
+        replaceInput,
+        caseInsensitive,
+        wordOnly,
+        searchLogic,
+      );
     }
   };
 
   const handlePageTitlesReplace = () => {
+    addToHistory(callbacks.extensionAPI, HISTORY_FIND, findInput);
+    addToHistory(callbacks.extensionAPI, HISTORY_REPLACE, replaceInput);
     callbacks.onPageTitlesReplace(findInput, replaceInput);
     handleClose();
   };
@@ -336,11 +471,25 @@ const UnifiedSearchPanel = ({ callbacks }) => {
     const count = callbacks.onCheckSelection();
     setSelectionCount(count);
     if (!count) return;
+    addToHistory(callbacks.extensionAPI, HISTORY_PREFIX_SUFFIX, prefixInput);
+    addToHistory(callbacks.extensionAPI, HISTORY_PREFIX_SUFFIX, suffixInput);
     callbacks.onAppendPrepend(prefixInput, suffixInput);
     handleClose();
   };
 
+  const handleFormatApply = () => {
+    if (!selectionCount) return;
+    callbacks.onFormatChange(fmtHeading, fmtAlignment, fmtView, fmtCaseChange);
+    // Reset selects but keep panel open so user can apply more changes
+    setFmtHeading("noChange");
+    setFmtAlignment("noChange");
+    setFmtView("noChange");
+    setFmtCaseChange("noChange");
+  };
+
   const handlePageBlockConvert = () => {
+    addToHistory(callbacks.extensionAPI, HISTORY_FIND, findInput);
+    addToHistory(callbacks.extensionAPI, HISTORY_REPLACE, replaceInput);
     if (conversionDirection === "pageToBlock") {
       callbacks.onPageToBlock(findInput, replaceInput, moveContent);
     } else {
@@ -350,17 +499,55 @@ const UnifiedSearchPanel = ({ callbacks }) => {
 
   const handleClose = () => {
     if (mode === "findReplace") {
-      callbacks.onFindReplaceClose(findInput, replaceInput, caseInsensitive, wordOnly, expandToHighlight, scope === "workspace");
+      callbacks.onFindReplaceClose(
+        findInput,
+        replaceInput,
+        caseInsensitive,
+        wordOnly,
+        expandToHighlight,
+        scope === "workspace",
+      );
     } else if (mode === "search") {
-      callbacks.onSearchClose(findInput, caseInsensitive, wordOnly, expandToHighlight, scope === "workspace");
+      callbacks.onSearchClose(
+        findInput,
+        caseInsensitive,
+        wordOnly,
+        expandToHighlight,
+        scope === "workspace",
+      );
     }
     closePanel();
   };
 
   const handleScopeChange = (newScope) => {
+    setSelectionWarning(false);
     setScope(newScope);
     if (newScope === "workspace" || newScope === "page") {
-      callbacks.onActualizeHighlights(findInput, caseInsensitive, wordOnly, expandToHighlight, searchLogic);
+      callbacks.onActualizeHighlights(
+        findInput,
+        caseInsensitive,
+        wordOnly,
+        expandToHighlight,
+        searchLogic,
+        newScope,
+      );
+    } else if (newScope === "selection") {
+      // checkSelection will re-populate nodes; re-highlight immediately after
+      const count = checkSelection();
+      if (count > 0) {
+        callbacks.onActualizeHighlights(
+          findInput,
+          caseInsensitive,
+          wordOnly,
+          expandToHighlight,
+          searchLogic,
+          "selection",
+        );
+      } else {
+        // No selection found — show warning, revert to page scope
+        setSelectionWarning(true);
+        setScope("page");
+      }
     }
   };
 
@@ -373,10 +560,21 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   // ── Derived display values ──
   const isGraphScope = scope === "graph";
   const isPageTitlesScope = scope === "pageTitles";
+  const isSelectionScope = scope === "selection";
   const isFindReplaceMode = mode === "findReplace";
   const isAppendPrependTab = mode === "appendPrepend";
+  const isFormatTab = mode === "format";
   const isPageBlockTab = mode === "pageBlockConversion";
   const isSearchOrReplace = mode === "search" || mode === "findReplace";
+
+  const tabTitles = {
+    search: "Search",
+    findReplace: "Find & Replace",
+    appendPrepend: "Prepend / Append to blocks",
+    format: "Format selected blocks",
+    pageBlockConversion: "Page ⟺ Block conversion",
+  };
+  const panelTitle = matchLabel || tabTitles[mode] || "Find & Replace";
 
   // Search logic options
   const logicOptions = [
@@ -385,7 +583,8 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   ];
   if (mode === "search") {
     logicOptions.push({ value: "AND", label: "AND" });
-    if (!isGraphScope) logicOptions.push({ value: "AND+", label: "AND+1" });
+    if (!isGraphScope && scope !== "selection")
+      logicOptions.push({ value: "AND+", label: "AND+1" });
   }
 
   // Placeholders for search/findReplace
@@ -411,7 +610,13 @@ const UnifiedSearchPanel = ({ callbacks }) => {
     ? "Block ref: ((uid)) or uid, or DNP"
     : "Target page name: [[page]] or page";
 
-  const showCaseWord = isSearchOrReplace && !(isGraphScope && isFindReplaceMode && graphSubMode === "replace page names");
+  const showCaseWord =
+    isSearchOrReplace &&
+    !(
+      isGraphScope &&
+      isFindReplaceMode &&
+      graphSubMode === "replace page names"
+    );
   const showDanger = isGraphScope && isFindReplaceMode;
 
   return (
@@ -423,7 +628,7 @@ const UnifiedSearchPanel = ({ callbacks }) => {
       {/* Header / drag handle */}
       <div className="fr-panel-header" onMouseDown={onHeaderMouseDown}>
         <span className="fr-panel-header-label">
-          {matchLabel || label || "Find & Replace"}
+          {panelTitle}
         </span>
         <Tooltip content="Close (Esc)" minimal>
           <Button
@@ -446,6 +651,7 @@ const UnifiedSearchPanel = ({ callbacks }) => {
         <Tab id="search" title="Search" />
         <Tab id="findReplace" title="Find & Replace" />
         <Tab id="appendPrepend" title="Pre/Append" />
+        <Tab id="format" title="Format" />
         <Tab id="pageBlockConversion" title="Page ⇔ Block" />
       </Tabs>
 
@@ -453,7 +659,10 @@ const UnifiedSearchPanel = ({ callbacks }) => {
       {isAppendPrependTab && (
         <div className="fr-panel-body">
           {/* Selection status row */}
-          <div className={selectionCount ? "fr-panel-info" : "fr-panel-warning"} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div
+            className={selectionCount ? "fr-panel-info" : "fr-panel-warning"}
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
+          >
             <span style={{ flex: 1 }}>
               {selectionCount === null
                 ? "Checking selection…"
@@ -478,6 +687,13 @@ const UnifiedSearchPanel = ({ callbacks }) => {
               placeholder="Text to prepend…"
               autoFocus
               fill
+              rightElement={
+                <HistoryPopover
+                  storageKey={HISTORY_PREFIX_SUFFIX}
+                  extensionAPI={callbacks.extensionAPI}
+                  onSelect={(v) => setPrefixInput(v)}
+                />
+              }
             />
           </div>
           <div className="fr-panel-replace-row">
@@ -486,6 +702,13 @@ const UnifiedSearchPanel = ({ callbacks }) => {
               onChange={(e) => setSuffixInput(e.target.value)}
               placeholder="Text to append…"
               fill
+              rightElement={
+                <HistoryPopover
+                  storageKey={HISTORY_PREFIX_SUFFIX}
+                  extensionAPI={callbacks.extensionAPI}
+                  onSelect={(v) => setSuffixInput(v)}
+                />
+              }
             />
           </div>
           <div className="fr-panel-buttons">
@@ -495,6 +718,61 @@ const UnifiedSearchPanel = ({ callbacks }) => {
               text="Apply"
               onClick={handleAppendPrepend}
               disabled={prefixInput === "" && suffixInput === ""}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Format tab ── */}
+      {isFormatTab && (
+        <div className="fr-panel-body">
+          {/* Selection status row */}
+          <div
+            className={selectionCount ? "fr-panel-info" : "fr-panel-warning"}
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <span style={{ flex: 1 }}>
+              {selectionCount === null
+                ? "Checking selection…"
+                : selectionCount > 0
+                  ? `✓ ${selectionCount} block${selectionCount > 1 ? "s" : ""} selected`
+                  : "⚠ No blocks selected — select blocks now, then refresh"}
+            </span>
+            <Tooltip content="Re-check selection" minimal>
+              <Button
+                minimal
+                small
+                icon="refresh"
+                onClick={checkSelection}
+                className="fr-btn-icon"
+              />
+            </Tooltip>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <FormatChangeBody
+              heading={fmtHeading}
+              setHeading={setFmtHeading}
+              alignment={fmtAlignment}
+              setAlignment={setFmtAlignment}
+              view={fmtView}
+              setView={setFmtView}
+              caseChange={fmtCaseChange}
+              setCaseChange={setFmtCaseChange}
+            />
+          </div>
+          <div className="fr-panel-buttons">
+            <Button
+              small
+              intent="primary"
+              text="Apply"
+              onClick={handleFormatApply}
+              disabled={
+                !selectionCount ||
+                (fmtHeading === "noChange" &&
+                  fmtAlignment === "noChange" &&
+                  fmtView === "noChange" &&
+                  fmtCaseChange === "noChange")
+              }
             />
           </div>
         </div>
@@ -553,7 +831,14 @@ const UnifiedSearchPanel = ({ callbacks }) => {
                 minimal
                 small
                 text="🔎"
-                onClick={() => callbacks.onPageBlockDisplayResults(findInput, replaceInput, conversionDirection, moveContent)}
+                onClick={() =>
+                  callbacks.onPageBlockDisplayResults(
+                    findInput,
+                    replaceInput,
+                    conversionDirection,
+                    moveContent,
+                  )
+                }
                 className="fr-btn-icon"
               />
             </Tooltip>
@@ -574,28 +859,57 @@ const UnifiedSearchPanel = ({ callbacks }) => {
           <div className="fr-panel-scope">
             <ButtonGroup>
               {[
-                { value: "page", label: "Main view" },
-                { value: "workspace", label: "Workspace" },
-                { value: "graph", label: "Graph" },
-                { value: "pageTitles", label: "Page titles" },
+                {
+                  value: "selection",
+                  label: selectionCount > 0 ? `Blocks (${selectionCount})` : "Blocks",
+                  tooltip: "Search within multiselected blocks (drag-select or Cmd+M). Click again to refresh the selection.",
+                },
+                {
+                  value: "page",
+                  label: "Main view",
+                  tooltip: "Search in the currently open page or zoomed block",
+                },
+                {
+                  value: "workspace",
+                  label: "Workspace",
+                  tooltip: "Search across main window and sidebar pages",
+                },
+                {
+                  value: "graph",
+                  label: "Graph",
+                  tooltip: "Whole-graph search and replace",
+                },
+                {
+                  value: "pageTitles",
+                  label: "Page titles",
+                  tooltip: "Find and replace patterns in page titles across the graph",
+                },
               ].map((s) => (
-                <Button
-                  key={s.value}
-                  small
-                  active={scope === s.value}
-                  text={s.label}
-                  onClick={() => handleScopeChange(s.value)}
-                />
+                <Tooltip key={s.value} content={s.tooltip} minimal>
+                  <Button
+                    small
+                    active={scope === s.value}
+                    text={s.label}
+                    onClick={() => handleScopeChange(s.value)}
+                  />
+                </Tooltip>
               ))}
             </ButtonGroup>
           </div>
+          {/* Warning when Blocks scope clicked but no selection found */}
+          {selectionWarning && (
+            <div className="fr-panel-warning" style={{ margin: "4px 10px 0" }}>
+              ⚠ No blocks selected — drag-select or use Cmd+M, then click Blocks again.
+            </div>
+          )}
 
           {/* Body */}
           <div className="fr-panel-body">
             {/* Graph info/danger */}
             {isGraphScope && !showDanger && (
               <div className="fr-panel-info">
-                🔎 to show results, 🔎◨ to open in sidebar, ((📋)) to copy block refs.
+                🔎 to show results, 🔎◨ to open in sidebar, ((📋)) to copy block
+                refs.
               </div>
             )}
             {showDanger && (
@@ -645,6 +959,17 @@ const UnifiedSearchPanel = ({ callbacks }) => {
                 placeholder={findPlaceholder}
                 autoFocus={false}
                 fill
+                rightElement={
+                  <HistoryPopover
+                    storageKey={HISTORY_FIND}
+                    extensionAPI={callbacks.extensionAPI}
+                    onSelect={(v) => {
+                      setFindInput(v);
+                      if (scope !== "graph" && scope !== "pageTitles" && v.length > 1)
+                        callbacks.onActualizeHighlights(v, caseInsensitive, wordOnly, expandToHighlight, searchLogic, scope);
+                    }}
+                  />
+                }
               />
               <Tooltip content="Refresh search" minimal>
                 <Button
@@ -666,13 +991,20 @@ const UnifiedSearchPanel = ({ callbacks }) => {
                   placeholder={replacePlaceholder}
                   autoFocus={false}
                   fill
+                  rightElement={
+                    <HistoryPopover
+                      storageKey={HISTORY_REPLACE}
+                      extensionAPI={callbacks.extensionAPI}
+                      onSelect={(v) => setReplaceInput(v)}
+                    />
+                  }
                 />
               </div>
             )}
 
             {/* Extra options */}
             <div className="fr-panel-extra-options">
-              {!isGraphScope && !isPageTitlesScope && (
+              {!isGraphScope && !isPageTitlesScope && !isSelectionScope && (
                 <Checkbox
                   label="Auto-expand blocks"
                   checked={expandToHighlight}
@@ -721,12 +1053,22 @@ const UnifiedSearchPanel = ({ callbacks }) => {
 
               {/* Graph scope: replace trigger */}
               {isGraphScope && isFindReplaceMode && (
-                <Button small intent="danger" text="Replace" onClick={handleGraphReplace} />
+                <Button
+                  small
+                  intent="danger"
+                  text="Replace"
+                  onClick={handleGraphReplace}
+                />
               )}
 
               {/* Page titles scope: replace trigger */}
               {isPageTitlesScope && isFindReplaceMode && (
-                <Button small intent="danger" text="Replace" onClick={handlePageTitlesReplace} />
+                <Button
+                  small
+                  intent="danger"
+                  text="Replace"
+                  onClick={handlePageTitlesReplace}
+                />
               )}
 
               {/* Shared buttons */}

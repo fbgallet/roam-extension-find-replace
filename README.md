@@ -4,6 +4,8 @@
 
 **Way more than a simple Find & Replace, a versatile tool for search and bulk operations:**
 
+### 🆕 in v.10: Input history with favorites
+
 ### 🆕 in v.9: Extract bold text
 
 ### 🆕 in v.8: Bulk change of [[page names]]
@@ -133,6 +135,12 @@ Insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (
 Enter the pattern to change in multiple page names (it can be a simple string as `Project`) and the replacing string. Before any change in your graph, you will see the list of page names containing this pattern and have the possibility to select or unselect page names to update. You can easily copy this page list to the clipboard or display it in the right sidebar.
 
 In the input field, you can enter a /regex/ to match more precisely some pattern (ex: `/(Project)/A.*`/`) (without escape character) will match 'Project' only if it has a namespace beginning by 'A'. 'Project' here is a capture group (by the use of parenthesis), so the replacing string will only replace this captured group. See next section for more detials on how Regex and placeholders for matching pattern or capture groups can be used.
+
+## 🆕 Input history with favorites
+
+All text inputs (find, replace, prepend, append) remember the last 10 strings you used. Click the history icon (🕐) on the right side of any input to open a dropdown with your recent values — click any entry to instantly fill the input.
+
+You can **favorite** any entry (⭐) to pin it permanently at the top of the list, immune to the 10-item rotation. Unfavoriting moves the entry back into the regular history. Individual entries can also be removed with ✕. History is stored persistently across sessions via the extension storage.
 
 ## Full Regex support
 
