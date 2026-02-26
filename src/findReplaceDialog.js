@@ -1,12 +1,7 @@
-import iziToast from "izitoast";
 import {
   updateBlock,
   getBlockAttributes,
   normalizeInputRegex,
-  getNextPositionIcon,
-  getNextPosition,
-  isRegex,
-  getMatchesNbInBlock,
   removeDuplicateBlocks,
   resolveReferences,
 } from "./utils";
@@ -15,10 +10,10 @@ import { infoToast } from "./notifications";
 import {
   highlightNextMatch,
   actualizeHighlights,
-  onKeyArrows,
   removeHighlightedNodes,
 } from "./highlighting";
 import { displaySearchResustsInPlainText } from "./searchDialog";
+import { openPanel, closePanel } from "./panelBridge";
 import state from "./state";
 
 // Dependencies injected from index.js to avoid circular imports
@@ -59,410 +54,138 @@ export const findAndReplace = async function (
   wordOnly = false,
   expandToHighlight = false,
   workspaceArg = false,
-  position = state.iziToastPosition,
+  position,
   refresh = true,
 ) {
-  let searchLogic = "";
-  let inputChanges = 0;
   if (refresh) _initializeGlobalVar();
   state.formatChange = false;
-  let positionIcon = getNextPositionIcon(position);
   let excludeDuplicateBackup = state.excludeDuplicate;
   state.excludeDuplicate = true;
-  let checkCase = "";
-  if (caseInsensitive) checkCase = "checked";
-  let checkWord = "";
-  if (wordOnly) checkWord = "checked";
-  let checkIncludeCollapsed = "";
-  if (expandToHighlight) checkIncludeCollapsed = "checked";
-  let checkWorkspace = "";
   if (workspaceArg != null) state.workspace = workspaceArg;
-  if (state.workspace) checkWorkspace = "checked";
-  iziToast.show({
-    id: "frBox",
-    position: position,
-    title: label,
-    //    message: "(Support regex. Click (?) for details)",
-    inputs: [
-      [
-        '<label for="checkb1" title="Take case into account or not to test matching words">Case Insensitive  </label>',
-        "change",
-        function (instance, toast, input, e) {},
-        false,
-      ],
-      [
-        '<input type="checkbox" id="checkb1"' + checkCase + ">",
-        "change",
-        function (instance, toast, input, e) {
-          caseInsensitive = input.checked;
-          actualizeHighlights(
-            findInput,
-            caseInsensitive,
-            wordOnly,
-            expandToHighlight,
-            searchLogic,
-          );
-        },
-        false,
-      ],
-      [
-        '<label for="checkb2" title="Match only entire words, not part of words.">Only words  </label>',
-        "change",
-        function (instance, toast, input, e) {},
-        false,
-      ],
-      [
-        '<input type="checkbox" id="checkb2"' + checkWord + ">",
-        "change",
-        function (instance, toast, input, e) {
-          wordOnly = input.checked;
-          actualizeHighlights(
-            findInput,
-            caseInsensitive,
-            wordOnly,
-            expandToHighlight,
-            searchLogic,
-          );
-        },
-        false,
-      ],
-      [
-        '<select style="color:#FFFFFFB3" title="Search logic: search for the full string, or for words separated by a space - one OR the other"><option value="" title="full string, including spaces">full str.</option><option value="OR">OR</option></select>',
-        "change",
-        function (instance, toast, select, e) {
-          searchLogic = select.value;
-          actualizeHighlights(
-            findInput,
-            caseInsensitive,
-            wordOnly,
-            expandToHighlight,
-            searchLogic,
-          );
-        },
-        false,
-      ],
-      [
-        '<input type="text" value="' +
-          findInput +
-          '" placeholder="Find... (support /regex/g, (?) for examples)" style="width:100%; color:#FFFFFFB3">',
-        "keyup",
-        function (instance, toast, input, e) {
-          let timeout = 800;
-          inputChanges++;
-          let currentChange = inputChanges;
-          setTimeout(() => {
-            findInput = input.value;
-            let length = input.value.length;
-            if (
-              length > 1 &&
-              (findInput.indexOf("/") != 0 || isRegex(findInput))
-            ) {
-              if (length > 2) timeout = 100;
-              if (inputChanges === currentChange) {
-                inputChanges++;
-                actualizeHighlights(
-                  findInput,
-                  caseInsensitive,
-                  wordOnly,
-                  expandToHighlight,
-                  searchLogic,
-                );
-              }
-            }
-          }, timeout);
-        },
-        true,
-      ],
-      [
-        '<input type="text" value="' +
-          replaceInput +
-          '" placeholder="Replace by... blank=delete, $RegEx=match" style="width:100%; color:#FFFFFFB3">',
-        "keydown",
-        function (instance, toast, input, e) {
-          setTimeout(() => {
-            replaceInput = input.value;
-            //promptParameters[1] = replaceInput;
-          }, 300);
-        },
-      ],
-      [
-        '<label for="checkb3" title="Expand collapsed blocks with matching strings">Auto-expand blocks </label>',
-        "change",
-        function (instance, toast, input, e) {},
-        false,
-      ],
-      [
-        '<input type="checkbox" id="checkb3"' + checkIncludeCollapsed + ">",
-        "change",
-        async function (instance, toast, input, e) {
-          expandToHighlight = input.checked;
-          actualizeHighlights(
-            findInput,
-            caseInsensitive,
-            wordOnly,
-            expandToHighlight,
-            searchLogic,
-          );
-        },
-        false,
-      ],
-      [
-        '<label for="checkb4" title="Search in the whole state.workspace: Page + Linked references + Right sidebar">Workspace  </label>',
-        "change",
-        function (instance, toast, input, e) {},
-        false,
-      ],
-      [
-        '<input type="checkbox" id="checkb4"' + checkWorkspace + ">",
-        "change",
-        async function (instance, toast, input, e) {
-          state.workspace = input.checked;
-          actualizeHighlights(
-            findInput,
-            caseInsensitive,
-            wordOnly,
-            expandToHighlight,
-            searchLogic,
-          );
-        },
-        false,
-      ],
-    ],
-    buttons: [
-      [
-        "<button>▲</button>",
-        function (instance, toast, button, e) {
-          highlightNextMatch(-1, toast);
-          _displayMatchCountInTitle(toast);
-        },
-      ],
-      [
-        "<button>▼</button>",
-        function (instance, toast, button, e) {
-          highlightNextMatch(1, toast);
-          _displayMatchCountInTitle(toast);
-        },
-      ],
-      [
-        "<button>Replace</button>",
-        async function (instance, toast, button, e) {
-          if (state.changesNb == 0 && state.changesNbBackup == 0) {
-            while (state.modifiedBlocksCopy.length > 0) {
-              state.modifiedBlocksCopy.pop();
-            }
-          }
-          let nbElts = state.eltFound.length;
-          let lastElt = state.eltFound[state.scrollIndex];
-          let item = state.matchArray[state.scrollIndex];
-          let promptParameters = normalizeInputRegex(
-            findInput,
-            replaceInput,
-            caseInsensitive,
-            wordOnly,
-            searchLogic,
-          );
 
-          let matchesInBlock = getMatchesNbInBlock(state.matchArray, item.uid);
-          await replaceSelectedMatches(
-            [promptParameters[0], promptParameters[1]],
-            state.scrollIndex,
-          );
-          let replacingStr = item.strToReplace.replace(
-            promptParameters[0],
-            replaceInput,
-          );
-          console.log("replacingStr :>> ", replacingStr);
-          item.replaced = true;
-          if (matchesInBlock > 1) {
-            let backupSimpleChangesNb = state.changesNbBackup;
-            actualizeHighlights(
-              findInput,
-              caseInsensitive,
-              wordOnly,
-              expandToHighlight,
-              searchLogic,
-            );
-            state.changesNbBackup = backupSimpleChangesNb;
-          } else
-            lastElt.parentNode.replaceChild(
-              document.createTextNode(replacingStr),
-              lastElt,
-            );
-          _displayMatchCountInTitle(toast);
-          if (nbElts > 1) highlightNextMatch(1, toast);
-          state.changesNb++;
-        },
-      ],
-      [
-        "<button><b>Replace all</b></button>",
-        async function (instance, toast, button, e, inputs) {
-          let promptParameters = normalizeInputRegex(
-            findInput,
-            replaceInput,
-            caseInsensitive,
-            wordOnly,
-            searchLogic,
-          );
-          if (promptParameters != null) {
-            state.lastOperation = "Find and Replace";
+  // Determine scope
+  const scope = state.workspace ? "workspace" : "page";
 
-            if (state.changesNb == 0 && state.changesNbBackup == 0)
-              while (state.modifiedBlocksCopy.length > 0) {
-                state.modifiedBlocksCopy.pop();
-              }
-            state.changesNb = 0;
-            let nodesToProcess = [];
-            nodesToProcess = state.expandedNodesUid.concat(
-              state.referencedNodesUid,
-            );
-            if (state.includeCollapsed)
-              nodesToProcess = nodesToProcess.concat(state.collapsedNodesUid);
-            nodesToProcess = removeDuplicateBlocks(nodesToProcess);
-            //  console.log("Nodes to process");
-            //  console.log(nodesToProcess);
-            state.changesNb += state.changesNbBackup;
-            await _selectedNodesProcessing(
-              nodesToProcess,
-              promptParameters,
-              replaceOpened,
-            );
-            // undoPopup(state.changesNb);
-            state.changesNbBackup = state.changesNb;
-          }
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-        false,
-      ],
-      [
-        "<button>Close</button>",
-        function (instance, toast, button, e) {
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-      ],
-      [
-        "<button title='Refresh search on page'>↻</button>",
-        function (instance, toast, button, e) {
-          actualizeHighlights(
-            findInput,
-            caseInsensitive,
-            wordOnly,
-            expandToHighlight,
-            searchLogic,
-          );
-        },
-      ],
-      [
-        "<button title='See in plain text blocks containing matching strings (or the strings only), in a dialog box'>🔎︎</button>",
-        function (instance, toast, button, e) {
-          let promptParameters = normalizeInputRegex(
-            findInput,
-            replaceInput,
-            caseInsensitive,
-            wordOnly,
-            searchLogic,
-          );
-          displaySearchResustsInPlainText(promptParameters, findInput);
-        },
-      ],
-      [
-        "<button title='Copy in Clipboard block refs of blocks containing matching strings (or only them)'>((📋))</button>",
-        function (instance, toast, button, e) {
-          let promptParameters = normalizeInputRegex(
-            findInput,
-            replaceInput,
-            caseInsensitive,
-            wordOnly,
-            searchLogic,
-          );
-          let searchString = promptParameters[0];
-          if (!findInput.includes("/")) searchString = findInput;
-          let replaceString = promptParameters[1];
-          if (!replaceInput.includes("/")) replaceString = replaceInput;
-          copyMatchingUidsToClipboard(
-            state.matchArray,
-            searchString,
-            caseInsensitive,
-            state.showPath,
-            replaceString,
-            "page",
-            isRegex(findInput) && state.extractMatchesOnly,
-          );
-          if (state.matchArray.length > 0)
-            infoToast(
-              (state.changesNb ||
-                state.matchArray.length ||
-                state.matchingStringsArray.length) +
-                " blocks or strings copied in the clipboard. Paste them anywhere in your graph!",
-            );
-        },
-      ],
-      [
-        "<button title='Move search box to the next position'>" +
-          positionIcon +
-          "</button>",
-        function (instance, toast, button, e, inputs) {
-          window.removeEventListener("keydown", onKeyArrows);
-          position = getNextPosition(position);
-          findAndReplace(
-            _getCurrentToastLabel(toast),
-            findInput,
-            replaceInput,
-            caseInsensitive,
-            wordOnly,
-            expandToHighlight,
-            state.workspace,
-            position,
-            false,
-          );
-        },
-      ],
-      [
-        "<button>❔</button>",
-        function (instance, toast, button, e) {
-          _helpToast();
-        },
-      ],
-    ],
-    onOpened: function (instance, toast) {
-      state.currentToast = toast;
-      window.addEventListener("keydown", onKeyArrows);
-      if (findInput != "" && findInput.length > 1 && refresh) {
-        actualizeHighlights(
-          findInput,
-          caseInsensitive,
-          wordOnly,
-          expandToHighlight,
-          searchLogic,
-        );
-      }
-    },
-    onClosing: function (instance, toast, closedBy) {},
-    onClosed: function (instance, toast, closedBy) {
-      if (closedBy == "esc" || closedBy == "button") {
-        state.inputBackup = [
-          findInput,
-          replaceInput,
-          caseInsensitive,
-          wordOnly,
-          expandToHighlight,
-          state.workspace,
-        ];
-        state.currentToast = null;
-        state.changesNbBackup = state.changesNb;
-        if (state.changesNb > 0) {
-          _undoPopup(state.changesNb, findInput, replaceInput);
-        }
-        state.workspace = false;
-        state.selectedBlocks = [];
+  // Restore previous inputs if available
+  let fi = findInput;
+  let ri = replaceInput;
+  let ci = caseInsensitive;
+  let wo = wordOnly;
+  let ex = expandToHighlight;
+  let ws = state.workspace;
 
-        state.excludeDuplicate = excludeDuplicateBackup;
-        removeHighlightedNodes();
-        window.removeEventListener("keydown", onKeyArrows);
-        _initializeGlobalVar(true);
-      }
-    },
+  openPanel({
+    mode: "findReplace",
+    scope,
+    label: label || "Find & Replace",
+    findInput: fi,
+    replaceInput: ri,
+    caseInsensitive: ci,
+    wordOnly: wo,
+    expandToHighlight: ex,
+    searchLogic: "",
   });
+
+  if (fi !== "" && fi.length > 1 && refresh) {
+    actualizeHighlights(fi, ci, wo, ex, "");
+  }
 };
+
+/**
+ * Perform a single replacement at the current scroll index.
+ * Called by UnifiedSearchPanel when "Replace" button is clicked.
+ */
+export const doReplace = async (findInput, replaceInput, caseInsensitive, wordOnly, searchLogic) => {
+  if (!state.eltFound || state.eltFound.length === 0) return;
+
+  if (state.changesNb == 0 && state.changesNbBackup == 0) {
+    while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
+  }
+
+  let nbElts = state.eltFound.length;
+  let lastElt = state.eltFound[state.scrollIndex];
+  let item = state.matchArray[state.scrollIndex];
+  let promptParameters = normalizeInputRegex(
+    findInput,
+    replaceInput,
+    caseInsensitive,
+    wordOnly,
+    searchLogic,
+  );
+
+  let matchesInBlock = getMatchesNbInBlock(state.matchArray, item.uid);
+  await replaceSelectedMatches(
+    [promptParameters[0], promptParameters[1]],
+    state.scrollIndex,
+  );
+  let replacingStr = item.strToReplace.replace(promptParameters[0], replaceInput);
+  item.replaced = true;
+  if (matchesInBlock > 1) {
+    let backupSimpleChangesNb = state.changesNbBackup;
+    actualizeHighlights(findInput, caseInsensitive, wordOnly, false, searchLogic);
+    state.changesNbBackup = backupSimpleChangesNb;
+  } else {
+    lastElt.parentNode.replaceChild(document.createTextNode(replacingStr), lastElt);
+  }
+  _displayMatchCountInTitle();
+  if (nbElts > 1) highlightNextMatch(1);
+  state.changesNb++;
+};
+
+/**
+ * Perform "Replace All" for all matches.
+ * Called by UnifiedSearchPanel when "Replace all" button is clicked.
+ */
+export const doReplaceAll = async (findInput, replaceInput, caseInsensitive, wordOnly, searchLogic) => {
+  let promptParameters = normalizeInputRegex(
+    findInput,
+    replaceInput,
+    caseInsensitive,
+    wordOnly,
+    searchLogic,
+  );
+  if (promptParameters != null) {
+    state.lastOperation = "Find and Replace";
+    if (state.changesNb == 0 && state.changesNbBackup == 0) {
+      while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
+    }
+    state.changesNb = 0;
+    let nodesToProcess = state.expandedNodesUid.concat(state.referencedNodesUid);
+    if (state.includeCollapsed)
+      nodesToProcess = nodesToProcess.concat(state.collapsedNodesUid);
+    nodesToProcess = removeDuplicateBlocks(nodesToProcess);
+    state.changesNb += state.changesNbBackup;
+    await _selectedNodesProcessing(nodesToProcess, promptParameters, replaceOpened);
+    state.changesNbBackup = state.changesNb;
+  }
+};
+
+/**
+ * Handle panel close: save backup, run undo popup if changes were made.
+ */
+export const onFindReplaceClose = (findInput, replaceInput, caseInsensitive, wordOnly, expandToHighlight, workspace) => {
+  state.inputBackup = [
+    findInput,
+    replaceInput,
+    caseInsensitive,
+    wordOnly,
+    expandToHighlight,
+    workspace,
+  ];
+  state.changesNbBackup = state.changesNb;
+  if (state.changesNb > 0) {
+    _undoPopup(state.changesNb, findInput, replaceInput);
+  }
+  state.workspace = false;
+  state.selectedBlocks = [];
+  removeHighlightedNodes();
+  _initializeGlobalVar(true);
+};
+
+// Helper used by doReplace
+function getMatchesNbInBlock(matchArray, uid) {
+  return matchArray.filter((m) => m.uid === uid && !m.replaced).length;
+}
 
 export const replaceSelectedMatches = async function (param, i) {
   let find = param[0];
@@ -482,14 +205,11 @@ export const replaceSelectedMatches = async function (param, i) {
     open: attr.open,
     page: attr.page,
   });
-  //console.log(state.modifiedBlocksCopy);
-  //let findLocal = new RegExp(param[0].source, param[0].flags);
   find.lastIndex = 0;
   matches = [...blockContent.matchAll(find)];
   let position;
   if (match.indexInBlock < matches.length)
     position = matches[match.indexInBlock].index;
-  // In case of nested block ref in another blockref, only the first match can be changed currently
   else position = matches[0].index;
   let replacedContent = "";
   if (
@@ -505,10 +225,8 @@ export const replaceSelectedMatches = async function (param, i) {
     if (position != 0) {
       replacedContent = blockContent.substring(0, position) || "";
     }
-
     replacedContent +=
       regexVarInsert(matches[match.indexInBlock], replace, blockContent) || "";
-
     let lastIndex = position + matches[match.indexInBlock][0].length;
     if (lastIndex < blockContent.length) {
       replacedContent += blockContent.substring(lastIndex) || "";
@@ -516,7 +234,6 @@ export const replaceSelectedMatches = async function (param, i) {
     blockContent = replacedContent;
   }
   let isAnotherUid = true;
-
   if (i < length - 1) {
     let nextMatch = state.matchArray[i + 1];
     isAnotherUid = uid != nextMatch.uid || !nextMatch.replaced;
@@ -539,10 +256,6 @@ export const replaceOpened = async (
   let lastIndex = 0;
   let stringArray = [];
   let blockContent = node.content;
-  // searchLogic != "" && node.refs != undefined
-  //   ? (blockContent = resolveReferences(node.content, node.uid))
-  //   : (blockContent = node.content);
-  // = node.content;
   let uid = node.uid;
   let isOpened = node.open;
   if (searchLogic != "") {
@@ -550,22 +263,16 @@ export const replaceOpened = async (
     if (searchLogic == "AND") find = find.and;
   }
 
-  // console.log(find);
-  // console.log(replace);
-
   if (find.test(blockContent)) {
     find.lastIndex = 0;
     if (find.global) {
       let matchIterator = [...blockContent.matchAll(find)];
-      // console.log(matchIterator);
       state.changesNb += matchIterator.length;
       if (reverse) {
         state.changesNb -= matchIterator.length;
         state.changesNb++;
       }
       if (!makeChange) {
-        // if (node.page == undefined)
-        //   node.page = getPageTitleByBlockUid(node.uid);
         if (state.extractMatchesOnly) {
           for (let i = 0; i < matchIterator.length; i++) {
             let groups = [];
@@ -629,7 +336,6 @@ export const replaceOpened = async (
       }
     } else {
       const mFirst = blockContent.match(find);
-      // console.log(mFirst);
       if (
         replace.search(/\$regex/i) == -1 &&
         replace.search(/\$1/) == -1 &&
@@ -745,7 +451,7 @@ export const regexFormat = (regexW, strMatch) => {
       for (let i = 0; i < sentences.length; i++) {
         let sentence = sentences[i][0];
         const firstRefMatch = _referencesRegex.exec(sentence);
-        if (firstRefMatch != null && firstRefMatch.index == 0) continue; // do not capitalize sentence begining by a reference
+        if (firstRefMatch != null && firstRefMatch.index == 0) continue;
         let capitalizedSentence =
           sentence.charAt(0).toUpperCase() + sentence.slice(1);
         strMatch =

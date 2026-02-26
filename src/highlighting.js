@@ -26,8 +26,8 @@ export function setHighlightingDeps({
   _referencesRegex = referencesRegex;
 }
 
-export const highlightNextMatch = function (shift, toast) {
-  if (!toast || !state.eltFound) {
+export const highlightNextMatch = function (shift) {
+  if (!state.eltFound) {
     window.removeEventListener("keydown", onKeyArrows);
     console.log(
       "keyArrow eventListener removed for Find & Replace extension removed",
@@ -121,11 +121,7 @@ export const actualizeHighlights = (
   }, 10);
 };
 
-export const highlightCurrentSearch = async (
-  input,
-  expand,
-  toast = state.currentToast,
-) => {
+export const highlightCurrentSearch = async (input, expand) => {
   state.scrollIndex = 0;
   state.matchIndex = 0;
   state.matchingTotal = 0;
@@ -150,7 +146,7 @@ export const highlightCurrentSearch = async (
         false,
       );
       highlightAllMatches();
-      _displayMatchCountInTitle(toast);
+      _displayMatchCountInTitle();
     }, 100);
   }
 };
@@ -186,14 +182,14 @@ const setNotCurrentHighlight = function (elt) {
 export const onKeyArrows = function (e) {
   if (e.key == "ArrowUp") {
     document.activeElement.blur();
-    highlightNextMatch(-1, state.currentToast);
-    _displayMatchCountInTitle(state.currentToast);
+    highlightNextMatch(-1);
+    _displayMatchCountInTitle();
     e.preventDefault();
   }
   if (e.key == "ArrowDown") {
     document.activeElement.blur();
-    highlightNextMatch(1, state.currentToast);
-    _displayMatchCountInTitle(state.currentToast);
+    highlightNextMatch(1);
+    _displayMatchCountInTitle();
     e.preventDefault();
   }
 };

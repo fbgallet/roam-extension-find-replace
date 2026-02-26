@@ -1,9 +1,13 @@
-import iziToast from "izitoast";
+import React from "react";
+import { Alert, Intent } from "@blueprintjs/core";
+import renderOverlay from "roamjs-components/util/renderOverlay";
 import getPageTitleByPageUid from "roamjs-components/queries/getPageTitleByPageUid";
 import { updateBlock, getBlockAttributes } from "./utils";
 import { displayChangedBlocks } from "./copyResults";
+import { warningToast } from "./notifications";
 import state from "./state";
 import { changeBlockToPage, changePageToBlock } from "./wholeGraph";
+import { openPanel } from "./panelBridge";
 
 // Dependencies injected from index.js to avoid circular imports
 let _findAndReplace,
@@ -129,6 +133,10 @@ export const undoLastBulkOperation = async function (
   await undoPopup(matchesNb, inputStr, replaceStr, 5000, "replace");
 };
 
+/**
+ * Shows a toast with Undo + Display changed blocks actions.
+ * Replaces the old iziToast.warning() undo popup.
+ */
 export const undoPopup = async function (
   matchesNb = state.changesNbBackup,
   findInput,
@@ -136,48 +144,55 @@ export const undoPopup = async function (
   timeout = 8000,
   display = "once",
 ) {
-  iziToast.warning({
-    timeout: timeout,
-    displayMode: display,
-    id: "undo",
-    color: "#CC6600C0",
-    zindex: 999,
-    title:
-      matchesNb +
-      " match(es) replaced! <br>" +
-      "Click to undo this '" +
-      state.lastOperation +
-      "' operation. Do not use Ctrl + z.",
-    close: true,
-    buttons: [
-      [
-        "<button>UNDO</button>",
-        async (instance, toast) => {
-          instance.hide({ transitionOut: "fadeOutUp" }, toast, "button");
-          await new Promise((r) => setTimeout(r, 300));
-          await undoLastBulkOperation(matchesNb, replaceStr, findInput);
-        },
-        false,
-      ],
-      [
-        "<button>Display changed blocks in sidebar</button>",
-        (instance, toast) => {
-          displayChangedBlocks(
-            false,
-            "",
-            state.lastOperation === "Find and Replace page names"
-              ? "replace page names"
-              : "",
-            true,
-            findInput,
-            replaceStr,
-          );
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-        true,
-      ],
-    ],
-  });
+  const msg =
+    matchesNb +
+    " match(es) replaced!\n" +
+    "Undo this '" +
+    state.lastOperation +
+    "' operation? (Do not use Ctrl+Z)";
+
+  // Use a Blueprint Toaster with action button for UNDO
+  // We render an Alert-style component for the undo confirmation
+  const UndoAlert = ({ isOpen, onClose }) => (
+    <Alert
+      isOpen={isOpen}
+      onClose={onClose}
+      intent={Intent.WARNING}
+      confirmButtonText="UNDO"
+      cancelButtonText="Keep changes"
+      canEscapeKeyCancel
+      canOutsideClickCancel
+      onConfirm={async () => {
+        await new Promise((r) => setTimeout(r, 100));
+        await undoLastBulkOperation(matchesNb, replaceStr, findInput);
+        onClose();
+      }}
+      icon="undo"
+    >
+      <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{msg}</p>
+      <div style={{ marginTop: 12 }}>
+        <button
+          style={{
+            fontSize: 12, background: "none", border: "1px solid #ccc",
+            borderRadius: 3, padding: "3px 8px", cursor: "pointer",
+          }}
+          onClick={() => {
+            displayChangedBlocks(
+              false, "",
+              state.lastOperation === "Find and Replace page names" ? "replace page names" : "",
+              true,
+              findInput,
+              replaceStr,
+            );
+            onClose();
+          }}
+        >
+          Display changed blocks in sidebar
+        </button>
+      </div>
+    </Alert>
+  );
+  renderOverlay({ Overlay: UndoAlert });
 };
 
 /******************************************************************************************
@@ -207,63 +222,53 @@ export const redoPopup = async function () {
       state.inputBackup[3],
       state.inputBackup[4],
     );
-  else
-    iziToast.warning({
-      timeout: 20000,
-      maxWidth: 420,
-      displayMode: "replace",
-      id: "undo",
-      color: "#CC6600C0",
-      zindex: 999,
-      position: state.iziToastPosition,
-      title:
-        "Are you sure you want to do another time last bulk '" +
-        state.lastOperation +
-        "' operation?",
-      overlay: true,
-      drag: false,
-      close: true,
-      buttons: [
-        [
-          "<button>Yes</button>",
-          async (instance, toast) => {
-            let callback;
-            switch (state.lastOperation) {
-              case "":
-                Alert("No bulk operation has been run.");
-                return;
-              case "Undo":
-                undoLastBulkOperation();
-                break;
-              case "Append and/or Prepend":
-                callback = _appendPrepend;
-                break;
-              case "Find and Replace":
-                callback = _replaceOpened;
-                break;
-              case "Change format":
-              default:
-                callback = _changeBlockFormat;
-                break;
-            }
-            while (state.modifiedBlocksCopy.length > 0) {
-              state.modifiedBlocksCopy.pop();
-            }
-            await _selectedNodesProcessing(
-              state.expandedNodesUid,
-              state.inputBackup,
-              callback,
-            );
-            instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-          },
-          true,
-        ],
-        [
-          "<button>No</button>",
-          (instance, toast) => {
-            instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-          },
-        ],
-      ],
-    });
+  else {
+    const confirmMsg =
+      "Are you sure you want to redo the last bulk '" +
+      state.lastOperation +
+      "' operation?";
+
+    const RedoAlert = ({ isOpen, onClose }) => (
+      <Alert
+        isOpen={isOpen}
+        onClose={onClose}
+        intent={Intent.WARNING}
+        confirmButtonText="Yes, redo"
+        cancelButtonText="No"
+        canEscapeKeyCancel
+        canOutsideClickCancel
+        onConfirm={async () => {
+          let callback;
+          switch (state.lastOperation) {
+            case "":
+              alert("No bulk operation has been run.");
+              return;
+            case "Undo":
+              undoLastBulkOperation();
+              break;
+            case "Append and/or Prepend":
+              callback = _appendPrepend;
+              break;
+            case "Find and Replace":
+              callback = _replaceOpened;
+              break;
+            case "Change format":
+            default:
+              callback = _changeBlockFormat;
+              break;
+          }
+          while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
+          await _selectedNodesProcessing(
+            state.expandedNodesUid,
+            state.inputBackup,
+            callback,
+          );
+          onClose();
+        }}
+      >
+        <p>{confirmMsg}</p>
+      </Alert>
+    );
+    renderOverlay({ Overlay: RedoAlert });
+  }
 };

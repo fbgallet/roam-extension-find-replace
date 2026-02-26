@@ -31,6 +31,7 @@ const FRDialog = ({ isOpen, onClose }) => {
   );
 };
 
+
 export function displayForm(submitButtonTitle = "Copy to clipboard") {
   state.submitButtonTitle = submitButtonTitle;
   state.cancelButtonTitle = "Close";

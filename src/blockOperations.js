@@ -1,6 +1,9 @@
-import iziToast from "izitoast";
+import React from "react";
 import { updateBlock, getBlockAttributes, normalizeInputRegex } from "./utils";
+import { openPanel } from "./panelBridge";
+import renderOverlay from "roamjs-components/util/renderOverlay";
 import state from "./state";
+import FormatChangeDialog from "./components/FormatChangeDialog";
 
 // Dependencies injected from index.js to avoid circular imports
 let _selectedNodesProcessing, _initializeGlobalVar, _replaceOpened, _referencesRegexStr;
@@ -35,66 +38,33 @@ export const appendPrepend = async (node, stringBefore, stringAfter) => {
   state.changesNb++;
 };
 
-export const appendPrependDialog = async function () {
+/**
+ * Called by the panel's onAppendPrepend callback (from index.js).
+ * Runs the bulk operation on all selected nodes.
+ */
+export const doAppendPrepend = async (prefixe, suffixe) => {
+  state.lastOperation = "Append and/or Prepend";
+  while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
+  await _selectedNodesProcessing(
+    state.expandedNodesUid,
+    [prefixe, suffixe],
+    appendPrepend,
+  );
+  state.selectedBlocks = [];
+  state.seletionBlue = false;
+  _initializeGlobalVar(true);
+};
+
+/**
+ * Opens the unified panel on the Pre/Append tab.
+ * Selection is checked inside the panel via onCheckSelection callback.
+ */
+export const appendPrependDialog = function () {
   state.changesNb = 0;
   state.formatChange = false;
-  iziToast.question({
-    maxWidth: 360,
-    layout: 2,
-    timeout: false,
-    close: false,
-    overlay: true,
-    id: "question",
-    title: "Text to prepend or/and to append to each selected blocks:",
-    message: "(Do not forget space if needed.)",
-    inputs: [
-      [
-        '<input type="text" placeholder="to prepend" style="width:100%; color:#FFFFFFB3">',
-        "keyup",
-        function (instance, toast, input, e) {},
-        true,
-      ],
-      [
-        '<input type="text" placeholder="to append" style="width:100%; color:#FFFFFFB3">',
-        "keydown",
-        function (instance, toast, input, e) {},
-      ],
-    ],
-    buttons: [
-      [
-        "<button><b>Confirm</b></button>",
-        async function (instance, toast, button, e, inputs) {
-          let prefixe = inputs[0].value;
-          let suffixe = inputs[1].value;
-          state.lastOperation = "Append and/or Prepend";
-          while (state.modifiedBlocksCopy.length > 0) {
-            state.modifiedBlocksCopy.pop();
-          }
-          await _selectedNodesProcessing(
-            state.expandedNodesUid,
-            [prefixe, suffixe],
-            appendPrepend,
-          );
-
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-        false,
-      ],
-      [
-        "<button>Cancel</button>",
-        function (instance, toast, button, e) {
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-      ],
-    ],
-    onClosing: function (instance, toast, closedBy) {},
-    onClosed: function (instance, toast, closedBy) {
-      if (closedBy == "esc" || closedBy == "button") {
-        state.selectedBlocks = [];
-        state.seletionBlue = false;
-        _initializeGlobalVar(true);
-      }
-    },
+  openPanel({
+    mode: "appendPrepend",
+    label: "Prepend / Append to selected blocks",
   });
 };
 
@@ -158,98 +128,52 @@ export const changeBlockFormat = async (node, headingLevel, alignment, view) => 
 
 export const changeBlockFormatPrompt = async function () {
   state.changesNb = 0;
-  let caseOptions =
-    '<option value="noChange">Case</option>' +
-    '<option value="toUpper">UPPER case</option>' +
-    '<option value="toLower">lower case</option>' +
-    '<option value="capitalizeB" title="Capitalize first letter of the block">Cap. block</option>' +
-    '<option value="capitalizeW" title="Capitalize Each Word">Cap. Words</option>' +
-    '<option value="capitalizeS" title="Capitalize each sentence.">Cap. sentences</option>';
-  iziToast.show({
-    maxWidth: 520,
-    timeout: false,
-    close: false,
-    progressBar: false,
-    title: "Format changes to apply to the selected blocks:",
-    inputs: [
-      [
-        '<select style="color:#FFFFFFB3"><option value="noChange">Heading</option><option value="1">H1</option><option value="2">H2</option><option value="3">H3</option><option value="0">Normal</option></select>',
-        "change",
-        function (instance, toast, select, e) {},
-        true,
-      ],
-      [
-        '<select style="color:#FFFFFFB3"><option value="noChange">Alignment</option><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option><option value="justify">Justify</option></select>',
-        "change",
-        function (instance, toast, select, e) {},
-      ],
-      [
-        '<select style="color:#FFFFFFB3"><option value="noChange">View as...</option><option value="document">Document</option><option value="numbered">Numbered List</option><option value="bullet">Bulleted List</option></select>',
-        "change",
-        function (instance, toast, select, e) {},
-      ],
-      [
-        '<select style="color:#FFFFFFB3">' + caseOptions + "</select>",
-        "change",
-        function (instance, toast, select, e) {},
-      ],
-    ],
-    buttons: [
-      [
-        "<button><b>Apply</b></button>",
-        async function (instance, toast, button, e, inputs) {
-          _initializeGlobalVar();
-          let h = inputs[0].options[inputs[0].selectedIndex].value;
-          let a = inputs[1].options[inputs[1].selectedIndex].value;
-          let v = inputs[2].options[inputs[2].selectedIndex].value;
-          let caseChange = inputs[3].options[inputs[3].selectedIndex].value;
 
-          if (h != "noChange" || a != "noChange" || v != "noChange") {
-            state.lastOperation = "Change format";
-            state.formatChange = true;
-            let promptParameters = [h, a, v];
-            while (state.modifiedBlocksCopy.length > 0) {
-              state.modifiedBlocksCopy.pop();
-            }
-            await _selectedNodesProcessing(
-              state.expandedNodesUid,
-              promptParameters,
-              changeBlockFormat,
-            );
-          }
-          if (caseChange != "noChange") {
-            state.lastOperation = "Change case";
-            caseBulkChange(caseChange);
-          }
+  const onApply = async (h, a, v, caseChange) => {
+    if (h != "noChange" || a != "noChange" || v != "noChange") {
+      state.lastOperation = "Change format";
+      state.formatChange = true;
+      const promptParameters = [h, a, v];
+      while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
+      await _selectedNodesProcessing(
+        state.expandedNodesUid,
+        promptParameters,
+        changeBlockFormat,
+      );
+    }
+    if (caseChange != "noChange") {
+      state.lastOperation = "Change case";
+      await caseBulkChange(caseChange);
+    }
+    state.selectedBlocks = [];
+    state.seletionBlue = false;
+    _initializeGlobalVar(true);
+    state.changesNbBackup = state.changesNb;
+  };
 
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-        false,
-      ], // true to focus
-      [
-        "<button>Cancel</button>",
-        function (instance, toast, button, e) {
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-      ],
-    ],
-    onClosing: function (instance, toast, closedBy) {
-      // console.info('Closing | closedBy: ' + closedBy);
-    },
-    onClosed: function (instance, toast, closedBy) {
-      if (closedBy == "esc" || closedBy == "button") {
-        state.selectedBlocks = [];
-        state.seletionBlue = false;
-        _initializeGlobalVar(true);
-        state.changesNbBackup = state.changesNb;
-      }
-    },
+  renderOverlay({
+    Overlay: ({ isOpen, onClose }) => (
+      <FormatChangeDialog
+        isOpen={isOpen}
+        onClose={() => {
+          state.selectedBlocks = [];
+          state.seletionBlue = false;
+          _initializeGlobalVar(true);
+          state.changesNbBackup = state.changesNb;
+          onClose();
+        }}
+        onApply={async (h, a, v, caseChange) => {
+          await onApply(h, a, v, caseChange);
+          onClose();
+        }}
+      />
+    ),
   });
 };
 
 export const caseBulkChange = async (change) => {
   let replace;
-  let input = _referencesRegexStr; // not simply /.*/, because we have to exclude blocks and page references!
+  let input = _referencesRegexStr;
   switch (change) {
     case "toUpper":
       replace = "$REGEX";
@@ -268,9 +192,7 @@ export const caseBulkChange = async (change) => {
       break;
   }
 
-  while (state.modifiedBlocksCopy.length > 0) {
-    state.modifiedBlocksCopy.pop();
-  }
+  while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
   let promptParameters = normalizeInputRegex(input, replace);
   promptParameters.push(true);
   if (change == "capitalizeS") promptParameters[0] = /.*/g;

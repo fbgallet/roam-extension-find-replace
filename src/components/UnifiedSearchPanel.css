@@ -1,0 +1,187 @@
+/* UnifiedSearchPanel — draggable floating search/replace popover */
+
+.fr-panel {
+  position: fixed;
+  z-index: 100;
+  width: 400px;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.18),
+    0 1px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  background: #f6f7f8;
+  border: 1px solid #d1d5db;
+  font-size: 13px;
+  user-select: none; /* prevent text selection while dragging */
+}
+
+/* ── Header ── */
+.fr-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 6px 12px;
+  background: #e8eaed;
+  border-bottom: 1px solid #d1d5db;
+  border-radius: 6px 6px 0 0;
+  cursor: move;
+  min-height: 30px;
+  gap: 8px;
+}
+
+.fr-panel-header-label {
+  font-size: 12px;
+  color: #5f6b7c;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+}
+
+/* ── Tabs (Search / Find & Replace) ── */
+.fr-panel .bp3-tabs {
+  padding: 4px 10px 0;
+}
+
+.fr-panel .bp3-tab-list {
+  border-bottom: 1px solid #d1d5db;
+}
+
+.fr-panel .bp3-tab {
+  font-size: 12px;
+  font-weight: 500;
+  color: #5f6b7c;
+}
+
+.fr-panel .bp3-tab[aria-selected="true"] {
+  color: #215db0;
+}
+
+/* ── Scope selector (ButtonGroup) ── */
+.fr-panel-scope {
+  display: flex;
+  justify-content: center;
+  padding: 6px 10px 2px;
+}
+
+.fr-panel-scope .bp3-button {
+  font-size: 11px;
+  min-width: 76px;
+}
+
+/* ── Body ── */
+.fr-panel-body {
+  padding: 6px 10px 8px;
+  user-select: text; /* re-enable text selection inside inputs */
+}
+
+/* Options row: checkboxes + select */
+.fr-panel-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin-bottom: 5px;
+}
+
+.fr-panel-options .bp3-checkbox {
+  margin: 0;
+  font-size: 12px;
+  color: #4a5568;
+}
+
+.fr-panel-options .bp3-html-select select {
+  font-size: 11px;
+  height: 22px;
+  padding: 0 20px 0 6px;
+  min-width: 72px;
+}
+
+/* Find / Replace inputs */
+.fr-panel-find-row,
+.fr-panel-replace-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.fr-panel-find-row .bp3-input-group,
+.fr-panel-replace-row .bp3-input-group {
+  flex: 1;
+}
+
+.fr-panel-find-row .bp3-input,
+.fr-panel-replace-row .bp3-input {
+  font-size: 13px;
+  height: 28px;
+}
+
+/* Extra options (auto-expand, move content) */
+.fr-panel-extra-options {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.fr-panel-extra-options .bp3-checkbox {
+  margin: 0;
+  font-size: 12px;
+  color: #4a5568;
+}
+
+/* Danger message (graph replace mode) */
+.fr-panel-danger {
+  font-size: 11px;
+  color: #c23030;
+  background: #ffe8e8;
+  border: 1px solid #f5a7a7;
+  border-radius: 4px;
+  padding: 3px 8px;
+  margin-bottom: 6px;
+}
+
+/* ── Buttons ── */
+.fr-panel-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  padding-top: 4px;
+  border-top: 1px solid #e1e4e8;
+  margin-top: 4px;
+}
+
+.fr-panel-buttons .bp3-button {
+  font-size: 12px;
+  min-height: 24px;
+  padding: 2px 8px;
+}
+
+.fr-panel-buttons .bp3-button.fr-btn-icon {
+  min-width: 28px;
+  padding: 2px 4px;
+}
+
+/* Info message (graph search hint, selection status) */
+.fr-panel-info {
+  font-size: 11px;
+  color: #5f6b7c;
+  background: #eef2f7;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 3px 8px;
+  margin-bottom: 6px;
+}
+
+/* Warning message (no selection) */
+.fr-panel-warning {
+  font-size: 11px;
+  color: #935610;
+  background: #fff3e0;
+  border: 1px solid #f0b86e;
+  border-radius: 4px;
+  padding: 3px 8px;
+  margin-bottom: 6px;
+}

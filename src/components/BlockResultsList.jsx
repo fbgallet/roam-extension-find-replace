@@ -78,6 +78,7 @@ const BlockResultsList = ({
   isMatchesOnly,
   onHighlight,
   onHighlightAll,
+  onReplaceSelected,
 }) => {
   const [filterText, setFilterText] = useState("");
   const [sortBy, setSortBy] = useState("page"); // "page" | "count" | "date"
@@ -108,7 +109,7 @@ const BlockResultsList = ({
       ...group,
       pageName: getPageNameByPageUid(group.page),
       blocks: group.blocks.map((block) => {
-        let display = block.content + "\n";
+        let display = (block.content ?? "") + "\n";
         if (display.includes("```")) {
           display = display.substring(0, state.codeBlockLimit) + " (...)";
         } else {
@@ -137,7 +138,7 @@ const BlockResultsList = ({
       const pageMention = "[[" + group.pageName + "]]";
       text += pageMention + "\n";
       group.blocks.forEach((block) => {
-        if (!block.content.includes("```")) {
+        if (!block.content?.includes("```")) {
           text += "  - " + block.display + "\n";
         }
       });
@@ -532,6 +533,18 @@ const BlockResultsList = ({
           <Icon icon="panel-stats" size={12} />
           {` Open ${selectedCount} in sidebar`}
         </button>
+        {onReplaceSelected && (
+          <button
+            className="block-results-replace-btn"
+            disabled={selectedCount === 0}
+            onClick={() => onReplaceSelected(
+              selectedBlocks ? allVisibleUids.filter((u) => selectedBlocks.has(u)) : []
+            )}
+            title="Replace only selected blocks"
+          >
+            Replace {selectedCount} selected
+          </button>
+        )}
       </div>
     </div>
   );

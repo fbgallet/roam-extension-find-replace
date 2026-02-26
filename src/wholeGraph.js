@@ -1,11 +1,11 @@
-import iziToast from "izitoast";
+import React from "react";
+import { Alert, Intent } from "@blueprintjs/core";
+import renderOverlay from "roamjs-components/util/renderOverlay";
 import {
   updateBlock,
   getBlockContentByUid,
   getPageUidByPageName,
   normalizeInputRegex,
-  getNextPositionIcon,
-  getNextPosition,
   normalizeMention,
   moveChildBlocks,
   getPageUidByNameOrCreateIt,
@@ -17,6 +17,7 @@ import {
   replaceSubstringOrCaptureGroup,
 } from "./utils";
 import { displayForm } from "./formDialog";
+import { openPanel, closePanel } from "./panelBridge";
 import {
   copyMatchingPagesToClipbard,
   copyMatchingUidsToClipboard,
@@ -29,7 +30,6 @@ import {
   displayWholeGraphCountInTitle,
 } from "./notifications";
 import Node from "./nodeModel";
-import React from "react";
 import BlockResultsList from "./components/BlockResultsList";
 import PageNamesList from "./components/PageNamesList";
 
@@ -72,445 +72,261 @@ export const findAndReplaceInWholeGraph = async function (
   caseInsensitive = false,
   wordOnly = false,
   moveContent = false,
-  position = state.iziToastPosition,
+  position,
   refresh = true,
 ) {
   if (refresh) _initializeGlobalVar();
-  // state.changesNb = 0;
-  // state.matchingTotal = 0;
-  // state.matchArray = [];
   state.formatChange = false;
-  let positionIcon = getNextPositionIcon(position);
-  let excludeDuplicateBackup = state.excludeDuplicate;
-  state.excludeDuplicate = true;
-  let searchLogic = "";
-  let checkCase = "";
-  if (caseInsensitive) checkCase = "checked";
-  let checkWord = "";
-  if (wordOnly) checkWord = "checked";
-  let checkMove = "";
-  if (moveContent) checkMove = "checked";
-  let inputField = "text";
-  let caseField = "checkbox";
-  let wordField = "checkbox";
-  let hideCaseLabel = "";
-  let hideWordLabel = "";
-  let hideButton = "";
-  let moveField = "hidden";
-  let hideMoveLabel = "hidden";
-  let inputPlaceholder = "Find... (support /regex/g, '?' for examples)";
-  let replacePlaceholder = "Replace by... blank=delete, $RegEx=match";
-  if (mode.includes("block")) {
-    caseField = wordField = hideCaseLabel = hideWordLabel = "hidden";
-    moveField = "checkbox";
-    hideMoveLabel = "";
+
+  // Determine panel mode from graph sub-mode
+  const panelMode = mode === "search" ? "search" : "findReplace";
+
+  openPanel({
+    mode: panelMode,
+    scope: "graph",
+    graphSubMode: mode,
+    label: label || "Whole Graph",
+    findInput,
+    replaceInput,
+    caseInsensitive,
+    wordOnly,
+    searchLogic: "",
+  });
+};
+
+/**
+ * Opens the unified panel on the Page ⇔ Block conversion tab.
+ */
+export const openPageBlockConversionPanel = function (
+  direction = "pageToBlock",
+  findInput = "",
+  replaceInput = "",
+  moveContent = false,
+) {
+  openPanel({
+    mode: "pageBlockConversion",
+    conversionDirection: direction,
+    findInput,
+    replaceInput,
+    moveContent,
+    label: "Page ⇔ Block conversion",
+  });
+};
+
+/**
+ * Called by UnifiedSearchPanel "Search" button in graph scope.
+ */
+export const doGraphSearch = async (findInput, caseInsensitive, wordOnly, searchLogic) => {
+  _initializeGlobalVar();
+  const promptParameters = normalizeInputRegex(
+    findInput, "", caseInsensitive, wordOnly, searchLogic, false, true,
+  );
+  if (findInput.length > 0) {
+    await wholeGraphProcessing(promptParameters, false);
+    displayWholeGraphCountInTitle();
+    if (state.matchArray.length > 0) {
+      displayResultsInPlainText(
+        state.matchArray.length + " blocks in your graph containing matching strings",
+        promptParameters,
+        findInput,
+      );
+    }
   }
-  let msg = "Danger zone! Check the affected blocks first 🔎︎";
-  let msgColor = "#ff7878"; // red
-  let ANDsearchOption = "";
-  switch (mode) {
-    case "replace page names":
-      inputPlaceholder = "Pattern as string or /regex(capture gr.)/";
-      replacePlaceholder = "String replacing pattern or capture group";
-      break;
-    case "page to block":
-      inputPlaceholder = "Page name: [[page]] or page";
-      replacePlaceholder = "Block ref: ((uid)) or uid, or DNP";
-      break;
-    case "block to page":
-      inputPlaceholder = "Source block reference: ((uid)) or uid";
-      replacePlaceholder = "Target page name: [[page]] or page";
-      break;
-    case "search":
-      inputField = "hidden";
-      hideButton = "display:none;";
-      ANDsearchOption = '<option value="AND">AND</option>';
-      msg =
-        "🔎︎ to show results as plain text, 🔎︎◨ to open them in sidebar, ((📋)) to copy block refences to clipboard.";
-      msgColor = "#ffffffb3";
-      break;
-    case "replace":
-      break;
+};
+
+/**
+ * Called by UnifiedSearchPanel "Replace" button in graph scope.
+ */
+export const doGraphReplace = async (findInput, replaceInput, caseInsensitive, wordOnly, searchLogic) => {
+  const promptParameters = normalizeInputRegex(
+    findInput, replaceInput, caseInsensitive, wordOnly, searchLogic, false, true,
+  );
+  if (findInput.length > 0) {
+    state.lastOperation = "Find and Replace";
+    warningPopupWholeGraph(promptParameters[0], promptParameters[1], "replace", false);
   }
-  iziToast.show({
-    id: "frBox",
-    message: msg,
-    messageColor: msgColor,
-    position: position,
-    title: label,
-    maxWidth: 420,
-    inputs: [
-      [
-        '<label for="checkb1"' + hideCaseLabel + ">Case Insensitive  </label>",
-        "change",
-        function (instance, toast, input, e) {},
-        false,
-      ],
-      [
-        '<input type="' + caseField + '" id="checkb1"' + checkCase + ">",
-        "change",
-        function (instance, toast, input, e) {
-          caseInsensitive = input.checked;
-          _initializeGlobalVar();
-        },
-        false,
-      ],
-      [
-        '<label for="checkb2"' + hideWordLabel + ">Only words  </label>",
-        "change",
-        function (instance, toast, input, e) {},
-        false,
-      ],
-      [
-        '<input type="' + wordField + '" id="checkb2"' + checkWord + ">",
-        "change",
-        function (instance, toast, input, e) {
-          wordOnly = input.checked;
-          _initializeGlobalVar();
-        },
-        false,
-      ],
-      [
-        '<select style="color:#FFFFFFB3" title="Search logic: search for the full string, or for words separated by a space - one OR the other, one AND the other in the block"><option value="" title="full string, including spaces">full str.</option><option value="OR">OR</option>' +
-          ANDsearchOption +
-          "</select>",
-        "change",
-        function (instance, toast, select, e) {
-          _initializeGlobalVar();
-          searchLogic = select.value;
-          if (searchLogic === "AND+") {
-            state.ANDwithChildren = true;
-            searchLogic = "AND";
-          } else state.ANDwithChildren = false;
-        },
-        false,
-      ],
-      [
-        '<input type="text" value="' +
-          findInput +
-          '" placeholder="' +
-          inputPlaceholder +
-          '" style="width:100%; color:#FFFFFFB3">',
-        "keyup",
-        function (instance, toast, input, e) {
-          setTimeout(() => {
-            findInput = input.value;
-            _initializeGlobalVar();
-            if (mode == "block to page") {
-              let uid = normalizeMention(findInput, "block");
-              if (uid != null) {
-                let blockContent =
-                  "[[" + getBlockContentByUid(uid.slice(2, -2)) + "]]";
-                document.querySelectorAll(
-                  "input.iziToast-inputs-child",
-                )[3].value = blockContent;
-                replaceInput = blockContent;
-              }
-            }
-          }, 10);
-        },
-        true,
-      ],
-      [
-        '<input type="' +
-          inputField +
-          '" value="' +
-          replaceInput +
-          '" placeholder="' +
-          replacePlaceholder +
-          '" style="width:100%; color:#FFFFFFB3">',
-        "keydown",
-        function (instance, toast, input, e) {
-          setTimeout(() => {
-            replaceInput = input.value;
-            _initializeGlobalVar();
-          }, 10);
-        },
-      ],
-      [
-        '<label for="checkb3" title="Move child blocks from source to target"' +
-          hideMoveLabel +
-          ">Move source content  </label>",
-        "change",
-        function (instance, toast, input, e) {},
-        false,
-      ],
-      [
-        '<input type="' + moveField + '" id="checkb3"' + checkMove + ">",
-        "change",
-        async function (instance, toast, input, e) {
-          moveContent = input.checked;
-          console.log(moveContent);
-        },
-        false,
-      ],
-    ],
-    buttons: [
-      [
-        "<button title='See the list of blocks containing matching strings (or the strings only) in plain text, in a dialog box.'>🔎︎</button>",
-        async function (instance, toast, button, e) {
-          let promptParameters = normalizeInputRegex(
-            findInput,
-            replaceInput,
-            caseInsensitive,
-            wordOnly,
-            searchLogic,
-            false,
-            mode === "replace page names" ? false : true,
-          );
-          if (findInput.length > 0) {
-            if (mode === "replace page names") {
-              wholeGraphPageNameProcessing(promptParameters, false, toast);
-              label = displayWholeGraphCountInTitle(
-                toast,
-                state.changesNb + " matching [[page names]]",
-              );
-              if (state.matchArray.length > 0)
-                displayPageNamesResults(...promptParameters, toast);
-            } else {
-              await wholeGraphProcessing(promptParameters, false, toast);
-              label = displayWholeGraphCountInTitle(toast);
-              if (state.matchArray.length > 0) {
-                displayResultsInPlainText(
-                  state.matchArray.length +
-                    " blocks in your graph containing matching strings",
-                  promptParameters,
-                  findInput,
-                );
-              }
-            }
-          }
-        },
-      ],
-      [
-        "<button title='Open in sidebar the list of blocks containing matching strings'>🔎︎◨</button>",
-        async function (instance, toast, button, e) {
-          let promptParameters = normalizeInputRegex(
-            findInput,
-            replaceInput,
-            caseInsensitive,
-            wordOnly,
-            searchLogic,
-            false,
-            mode === "replace page names" ? false : true,
-          );
-          if (findInput.length > 0) {
-            if (mode === "replace page names") {
-              wholeGraphPageNameProcessing(promptParameters, false, toast);
-              label = displayWholeGraphCountInTitle(
-                toast,
-                state.changesNb + " matching [[page names]]",
-              );
-            } else {
-              await wholeGraphProcessing(promptParameters, false, toast);
-              label = displayWholeGraphCountInTitle(toast);
-            }
-            let searchString = promptParameters[0];
-            if (!findInput.includes("/")) searchString = findInput;
-            let replaceString = promptParameters[1];
-            if (!replaceInput.includes("/")) replaceString = replaceInput;
-            let title = "Matching blocks for search on: `" + findInput + "`";
-            if (mode === "replace page names")
-              title = title.replace("blocks", "page names");
-            if (state.matchArray.length > 0)
-              if (state.matchArray.length < 200)
-                displayChangedBlocks(true, title, mode, false, findInput);
-              else {
-                errorToast(
-                  "More than 200 results, narrow down your search! Click on 🔎︎ to see the list in plain text.",
-                );
-              }
-          }
-        },
-      ],
-      [
-        "<button title='Copy in Clipboard block refs of blocks containing matching strings (or only them)'>((📋))</button>",
-        async function (instance, toast, button, e) {
-          let promptParameters = normalizeInputRegex(
-            findInput,
-            replaceInput,
-            caseInsensitive,
-            wordOnly,
-            searchLogic,
-            false,
-            mode === "replace page names" ? false : true,
-          );
-          if (findInput.length > 0) {
-            if (mode === "replace page names") {
-              wholeGraphPageNameProcessing(promptParameters, false, toast);
-              label = displayWholeGraphCountInTitle(
-                toast,
-                state.changesNb + " matching [[page names]]",
-              );
-            } else {
-              await wholeGraphProcessing(promptParameters, false);
-              label = displayWholeGraphCountInTitle(toast);
-            }
-            let searchString = promptParameters[0];
-            if (!findInput.includes("/")) searchString = findInput;
-            let replaceString = promptParameters[1];
-            if (!replaceInput.includes("/")) replaceString = replaceInput;
-            if (state.matchArray.length < 200) {
-              if (mode === "replace page names") {
-                copyMatchingPagesToClipbard();
-              } else
-                copyMatchingUidsToClipboard(
-                  state.matchArray,
-                  searchString,
-                  caseInsensitive,
-                  state.showPath,
-                  replaceString,
-                  "whole graph",
-                  isRegex(findInput) && state.extractMatchesOnly,
-                );
-              if (state.matchArray.length > 0)
-                infoToast(
-                  state.matchArray.length +
-                    " items copied in the clipboard. Paste them anywhere in your graph!",
-                );
-            } else {
-              errorToast(
-                "More than 200 block references to copy, narrow down your search! Click on 🔎︎ to see the list in plain text.",
-              );
-              console.log(state.matchArray);
-            }
-          }
-        },
-      ],
-      [
-        "<button style='color:red; " + hideButton + "'><b>Replace</b></button>",
-        async function (instance, toast, button, e, inputs) {
-          let thisToast = { instance: instance, toast: toast };
-          let promptParameters = normalizeInputRegex(
-            findInput,
-            replaceInput,
-            caseInsensitive,
-            wordOnly,
-            searchLogic,
-            false,
-            mode === "replace page names" ? false : true,
-          );
-          if (findInput.length > 0)
-            switch (mode) {
-              case "replace page names":
-                wholeGraphPageNameProcessing(promptParameters, false, toast);
-                if (state.matchArray.length > 0) {
-                  displayPageNamesResults(...promptParameters, toast);
-                }
-                break;
-              case "replace":
-                state.lastOperation = "Find and Replace";
-                warningPopupWholeGraph(
-                  promptParameters[0],
-                  promptParameters[1],
-                  mode,
-                  false,
-                  thisToast,
-                );
-                break;
-              case "block to page":
-                let normalizedFind = normalizeMention(findInput, "block");
-                if (normalizedFind === null) {
-                  errorToast(
-                    "Incorrect block reference. Copy/past it from the original block by pressing Ctrl+Shift+c.",
-                  );
-                  return;
-                } else findInput = normalizedFind;
-                state.lastOperation = mode;
-                warningPopupWholeGraph(
-                  findInput,
-                  replaceInput,
-                  mode,
-                  moveContent,
-                  thisToast,
-                );
-                break;
-              case "page to block":
-                let normalizedReplace = normalizeMention(replaceInput, "block");
-                if (normalizedReplace === null) {
-                  if (
-                    replaceInput == "" ||
-                    replaceInput.toLocaleLowerCase() == "dnp"
-                  ) {
-                    replaceInput = await createBlockOnDNP();
-                    infoToast(
-                      "The converted block will be created as the last block of Today's page.",
-                    );
-                  } else {
-                    errorToast(
-                      "Incorrect block reference. Copy/past it from the original block by pressing Ctrl+Shift+c.",
-                    );
-                    return;
-                  }
-                } else replaceInput = normalizedReplace;
-                state.lastOperation = mode;
-                warningPopupWholeGraph(
-                  findInput,
-                  replaceInput,
-                  mode,
-                  moveContent,
-                  thisToast,
-                );
-            }
-          //   }
-          // instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-        false,
-      ],
-      [
-        "<button>Close</button>",
-        function (instance, toast, button, e) {
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-      ],
-      [
-        "<button title='Move search box to the next position'>" +
-          positionIcon +
-          "</button>",
-        function (instance, toast, button, e, inputs) {
-          findAndReplaceInWholeGraph(
-            label,
-            mode,
-            findInput,
-            replaceInput,
-            caseInsensitive,
-            wordOnly,
-            position,
-            getNextPosition(position),
-            false,
-          );
-        },
-      ],
-      [
-        "<button>❔</button>",
-        function (instance, toast, button, e) {
-          if (mode == "block to page" || mode == "page to block")
-            _helpToast("Warning!", _pageBlockConversionInstructions);
-          else _helpToast();
-        },
-      ],
-    ],
-    onOpened: function (instance, toast) {},
-    onClosing: function (instance, toast, closedBy) {},
-    onClosed: function (instance, toast, closedBy) {
-      if (closedBy == "esc" || closedBy == "button") {
-        _initializeGlobalVar();
-        state.inputBackup = [
+};
+
+export const doGraphReplacePageNames = async (findInput, replaceInput) => {
+  const promptParameters = normalizeInputRegex(findInput, replaceInput, false, false, "", false, false);
+  if (findInput.length > 0) {
+    wholeGraphPageNameProcessing(promptParameters, false);
+    displayWholeGraphCountInTitle(state.changesNb + " matching [[page names]]");
+    if (state.matchArray.length > 0) displayPageNamesResults(...promptParameters);
+  }
+};
+
+/**
+ * Page titles scope — show matching page names (called from panel 🔎 button).
+ */
+export const doPageTitlesDisplayResults = async (findInput, replaceInput) => {
+  const promptParameters = normalizeInputRegex(findInput, replaceInput ?? "", false, false, "", false, false);
+  if (findInput.length === 0) return;
+  _initializeGlobalVar();
+  wholeGraphPageNameProcessing(promptParameters, false);
+  displayWholeGraphCountInTitle(state.changesNb + " matching [[page names]]");
+  if (state.matchArray.length > 0) displayPageNamesResults(...promptParameters);
+};
+
+/**
+ * Page titles scope — replace page name patterns (called from panel Replace button).
+ */
+export const doPageTitlesReplace = async (findInput, replaceInput) => {
+  const promptParameters = normalizeInputRegex(findInput, replaceInput, false, false, "", false, false);
+  if (findInput.length === 0) return;
+  if (state.matchArray.length === 0) {
+    _initializeGlobalVar();
+    wholeGraphPageNameProcessing(promptParameters, false);
+  }
+  if (state.matchArray.length > 0) {
+    displayPageNamesResults(...promptParameters);
+  }
+};
+
+/**
+ * Page⇔Block tab — show preview of affected blocks before converting.
+ */
+export const doPageBlockDisplayResults = async (findInput, replaceInput, direction, moveContent) => {
+  _initializeGlobalVar();
+  if (direction === "blockToPage") {
+    const normalizedFind = normalizeMention(findInput, "block");
+    if (normalizedFind === null) {
+      errorToast("Incorrect block reference.");
+      return;
+    }
+    const promptParameters = normalizeInputRegex(normalizedFind, replaceInput);
+    await wholeGraphProcessing(promptParameters, false);
+    displayWholeGraphCountInTitle(state.changesNb + " blocks referencing this block");
+    if (state.matchArray.length > 0)
+      displayResultsInPlainText(
+        state.matchArray.length + " blocks referencing " + findInput,
+        promptParameters,
+        findInput,
+      );
+  } else {
+    // pageToBlock: show blocks referencing the page
+    const pageMentionsRegex = getPageMentionRegex(findInput.replace(/^\[\[|\]\]$/g, ""));
+    await wholeGraphProcessing([pageMentionsRegex, replaceInput], false);
+    displayWholeGraphCountInTitle(state.changesNb + " blocks referencing [[" + findInput + "]]");
+    if (state.matchArray.length > 0)
+      displayResultsInPlainText(
+        state.matchArray.length + " blocks referencing " + findInput,
+        [pageMentionsRegex, replaceInput],
+        findInput,
+      );
+  }
+};
+
+export const doGraphBlockToPage = async (findInput, replaceInput, moveContent) => {
+  let normalizedFind = normalizeMention(findInput, "block");
+  if (normalizedFind === null) {
+    errorToast("Incorrect block reference. Copy/paste it from the original block by pressing Ctrl+Shift+c.");
+    return;
+  }
+  state.lastOperation = "block to page";
+  warningPopupWholeGraph(normalizedFind, replaceInput, "block to page", moveContent);
+};
+
+export const doGraphPageToBlock = async (findInput, replaceInput, moveContent) => {
+  let normalizedReplace = normalizeMention(replaceInput, "block");
+  if (normalizedReplace === null) {
+    if (replaceInput === "" || replaceInput.toLocaleLowerCase() === "dnp") {
+      replaceInput = await createBlockOnDNP();
+      infoToast("The converted block will be created as the last block of Today's page.");
+    } else {
+      errorToast("Incorrect block reference. Copy/paste it from the original block by pressing Ctrl+Shift+c.");
+      return;
+    }
+  } else replaceInput = normalizedReplace;
+  state.lastOperation = "page to block";
+  warningPopupWholeGraph(findInput, replaceInput, "page to block", moveContent);
+};
+
+export const doGraphDisplayResults = async (findInput, caseInsensitive, wordOnly, searchLogic, graphSubMode, replaceInput) => {
+  _initializeGlobalVar();
+  const isPageNames = graphSubMode === "replace page names";
+  const promptParameters = normalizeInputRegex(
+    findInput, replaceInput ?? "", caseInsensitive, wordOnly, searchLogic, false, !isPageNames,
+  );
+  if (findInput.length > 0) {
+    if (isPageNames) {
+      wholeGraphPageNameProcessing(promptParameters, false);
+      displayWholeGraphCountInTitle(state.changesNb + " matching [[page names]]");
+      if (state.matchArray.length > 0) displayPageNamesResults(...promptParameters);
+    } else {
+      await wholeGraphProcessing(promptParameters, false);
+      displayWholeGraphCountInTitle();
+      if (state.matchArray.length > 0) {
+        displayResultsInPlainText(
+          state.matchArray.length + " blocks in your graph containing matching strings",
+          promptParameters,
           findInput,
           replaceInput,
-          caseInsensitive,
-          wordOnly,
-          moveContent,
-        ];
+        );
       }
-    },
-  });
+    }
+  }
+};
+
+export const doGraphDisplayResultsSidebar = async (findInput, caseInsensitive, wordOnly, searchLogic, graphSubMode) => {
+  _initializeGlobalVar();
+  const isPageNames = graphSubMode === "replace page names";
+  const promptParameters = normalizeInputRegex(
+    findInput, "", caseInsensitive, wordOnly, searchLogic, false, !isPageNames,
+  );
+  if (findInput.length === 0) return;
+  if (isPageNames) {
+    wholeGraphPageNameProcessing(promptParameters, false);
+    displayWholeGraphCountInTitle(state.changesNb + " matching [[page names]]");
+  } else {
+    await wholeGraphProcessing(promptParameters, false);
+    displayWholeGraphCountInTitle();
+  }
+  const title = "Matching blocks for search on: `" + findInput + "`";
+  if (state.matchArray.length > 0) {
+    if (state.matchArray.length < 200)
+      displayChangedBlocks(true, title, graphSubMode, false, findInput);
+    else
+      errorToast("More than 200 results, narrow down your search! Click on 🔎 to see the list in plain text.");
+  }
+};
+
+export const doGraphCopyRefs = async (findInput, replaceInput, caseInsensitive, wordOnly, searchLogic, graphSubMode) => {
+  const isPageNames = graphSubMode === "replace page names";
+  const promptParameters = normalizeInputRegex(
+    findInput, replaceInput, caseInsensitive, wordOnly, searchLogic, false, !isPageNames,
+  );
+  if (findInput.length === 0) return;
+  if (isPageNames) {
+    wholeGraphPageNameProcessing(promptParameters, false);
+    displayWholeGraphCountInTitle(state.changesNb + " matching [[page names]]");
+  } else {
+    await wholeGraphProcessing(promptParameters, false);
+    displayWholeGraphCountInTitle();
+  }
+  const searchString = !findInput.includes("/") ? findInput : promptParameters[0];
+  const replaceString = !replaceInput.includes("/") ? replaceInput : promptParameters[1];
+  if (state.matchArray.length < 200) {
+    if (isPageNames) {
+      copyMatchingPagesToClipbard();
+    } else {
+      copyMatchingUidsToClipboard(
+        state.matchArray, searchString, caseInsensitive, state.showPath,
+        replaceString, "whole graph", isRegex(findInput) && state.extractMatchesOnly,
+      );
+    }
+    if (state.matchArray.length > 0)
+      infoToast(state.matchArray.length + " items copied in the clipboard. Paste them anywhere in your graph!");
+  } else {
+    errorToast("More than 200 block references to copy, narrow down your search! Click on 🔎 to see the list in plain text.");
+  }
 };
 
 export const displayResultsInPlainText = (
   dialogCaption,
   promptParameters,
   findInput,
+  replaceInput,
 ) => {
   let treeArray;
   const isMatchesOnly = state.extractMatchesOnly && isRegex(findInput);
@@ -528,6 +344,10 @@ export const displayResultsInPlainText = (
   } else {
     treeArray = groupMatchesByPage(state.matchArray);
   }
+
+  // Only offer Replace Selected when there's a replace string (F&R mode, not plain search)
+  const hasReplace = replaceInput !== undefined && replaceInput !== null;
+
   state.resultsJSX = (
     <BlockResultsList
       treeArray={treeArray}
@@ -535,6 +355,15 @@ export const displayResultsInPlainText = (
       isMatchesOnly={isMatchesOnly}
       onHighlight={_highlightString}
       onHighlightAll={_highlightAllMatches}
+      onReplaceSelected={hasReplace ? (selectedUids) => {
+        warningPopupWholeGraph(
+          promptParameters[0],
+          promptParameters[1],
+          "replace",
+          false,
+          selectedUids,
+        );
+      } : undefined}
     />
   );
   state.dialogTitle = <h4>{dialogCaption}:</h4>;
@@ -545,7 +374,7 @@ export const displayResultsInPlainText = (
   displayForm("Copy to clipboard");
 };
 
-const displayPageNamesResults = (find, replace, toast) => {
+const displayPageNamesResults = (find, replace) => {
   state.submitParams = [[...state.matchArray]];
 
   state.resultsJSX = (
@@ -563,7 +392,6 @@ const displayPageNamesResults = (find, replace, toast) => {
       replace,
       "replace page names",
       false,
-      toast,
       selectedElts,
     );
   };
@@ -575,102 +403,87 @@ const warningPopupWholeGraph = async (
   replace,
   mode = "search",
   moveContent = false,
-  mainToast = null,
   arrayToProcess,
 ) => {
-  let title = "Replace a given string in the whole graph ";
+  let title = "Replace a given string in the whole graph";
   let findRegex = find;
   let inputs;
+  // selectedUids: array of uid strings passed when replacing only selected blocks
+  const selectedUids = Array.isArray(arrayToProcess) && mode === "replace" ? arrayToProcess : undefined;
+
   switch (mode) {
     case "replace page names":
-      title = "Replacing patterns in [[page names]] ";
-      state.changesNb = arrayToProcess.length;
+      title = "Replacing patterns in [[page names]]";
+      state.changesNb = arrayToProcess ? arrayToProcess.length : state.changesNb;
       break;
     case "block to page":
-      title = "Convert a block in a page ";
+      title = "Convert a block in a page";
       inputs = normalizeInputRegex(find, replace);
       findRegex = inputs[0];
       replace = inputs[1];
       break;
     case "page to block":
-      title = "Convert a page in a block ";
+      title = "Convert a page in a block";
       findRegex = getPageMentionRegex(find);
+      break;
   }
-  if (mode !== "replace page names")
+
+  if (selectedUids) {
+    // Replace selected: we already know the count, no re-scan needed
+    state.changesNb = selectedUids.length;
+    title = "Replace selected blocks in the whole graph";
+  } else if (mode !== "replace page names") {
     await wholeGraphProcessing([findRegex, replace], false);
+  }
   if (mode === "block to page" || mode === "page to block") state.changesNb++;
   if (state.changesNb === 0) {
-    errorToast(
-      "0 matching block in the graph, try again with another block or page reference",
-    );
+    errorToast("0 matching block in the graph, try again with another block or page reference");
     return;
   }
-  iziToast.warning({
-    timeout: 20000,
-    id: "warning",
-    zindex: 999,
-    maxWidth: 520,
-    title: state.changesNb + " matches have been found !",
-    message:
-      "<br>" +
-      title +
-      "is a very dangerous operation and can have unintended consequences. <br><br>" +
-      "Do you confirm that you want to replace '" +
-      find +
-      "' by '" +
-      replace +
-      "' ?",
-    position: "center",
-    overlay: true,
-    color: "rgb(255, 120, 120, 0.8)",
-    drag: false,
-    close: true,
-    buttons: [
-      [
-        "<button>Yes I know what I do</button>",
-        async (instance, toast) => {
-          while (state.modifiedBlocksCopy.length > 0) {
-            state.modifiedBlocksCopy.pop();
-          }
-          switch (mode) {
-            case "replace page names":
-              await wholeGraphPageNameProcessing(
-                [find, replace],
-                true,
-                toast,
-                arrayToProcess,
-              );
-              break;
-            case "block to page":
-              await changeBlockToPage(find, replace, moveContent);
-              break;
-            case "page to block":
-              await changePageToBlock(find, replace, moveContent);
-              break;
-            default:
+
+  const confirmMsg =
+    state.changesNb + " matches found.\n\n" +
+    title + " is a very dangerous operation and can have unintended consequences.\n\n" +
+    "Do you confirm that you want to replace '" + find + "' by '" + replace + "' ?";
+
+  const ConfirmAlert = ({ isOpen, onClose }) => (
+    <Alert
+      isOpen={isOpen}
+      onClose={onClose}
+      intent={Intent.DANGER}
+      confirmButtonText="Yes, I know what I do"
+      cancelButtonText="No, cancel"
+      canEscapeKeyCancel
+      canOutsideClickCancel
+      onConfirm={async () => {
+        while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
+        switch (mode) {
+          case "replace page names":
+            await wholeGraphPageNameProcessing([find, replace], true, null, arrayToProcess);
+            break;
+          case "block to page":
+            await changeBlockToPage(find, replace, moveContent);
+            break;
+          case "page to block":
+            await changePageToBlock(find, replace, moveContent);
+            break;
+          default:
+            if (selectedUids) {
+              await wholeGraphProcessingSelected(selectedUids, findRegex, replace);
+            } else {
               await wholeGraphProcessing([find, replace], true);
-          }
-          state.changesNbBackup = state.changesNb;
-          mainToast?.instance?.hide(
-            { transitionOut: "fadeOut" },
-            mainToast.toast,
-            "button",
-          );
-          _undoPopup(state.changesNb, find, replace);
-          state.changesNb;
-          instance?.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-        false,
-      ],
-      [
-        "<button>No, cancel and check more carefully</button>",
-        (instance, toast) => {
-          instance.hide({ transitionOut: "fadeOut" }, toast, "button");
-        },
-        true,
-      ],
-    ],
-  });
+            }
+        }
+        state.changesNbBackup = state.changesNb;
+        closePanel();
+        _undoPopup(state.changesNb, find, replace);
+        onClose();
+      }}
+    >
+      <p style={{ whiteSpace: "pre-wrap" }}>{confirmMsg}</p>
+    </Alert>
+  );
+  renderOverlay({ Overlay: ConfirmAlert });
 };
 
 const wholeGraphProcessing = async (
@@ -733,6 +546,21 @@ const wholeGraphProcessing = async (
     //toast.instance.hide({ transitionOut: "fadeOut" }, toast.toast, "button");
   }
   //console.log(state.matchArray);
+};
+
+// Processes only the blocks whose uids are in selectedUids (array of uid strings)
+const wholeGraphProcessingSelected = async (selectedUids, find, replace) => {
+  const uidSet = new Set(selectedUids);
+  const blocksToProcess = state.matchArray.filter((m) => uidSet.has(m.uid));
+  state.changesNb = 0;
+  for (const match of blocksToProcess) {
+    let node = new Node(match.uid, {
+      string: match.content,
+      open: match.open,
+      page: match.page,
+    });
+    await _replaceOpened(node, find, replace, "", true);
+  }
 };
 
 const wholeGraphPageNameProcessing = async (

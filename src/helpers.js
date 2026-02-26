@@ -1,4 +1,7 @@
-import iziToast from "izitoast";
+import React from "react";
+import { Dialog, Button, Classes } from "@blueprintjs/core";
+import renderOverlay from "roamjs-components/util/renderOverlay";
+import { updatePanelField, getPanelState } from "./panelBridge";
 import state from "./state";
 
 // Dependencies injected from index.js
@@ -8,19 +11,37 @@ export function setHelpersDeps({ examplesOfRegex }) {
   _examplesOfRegex = examplesOfRegex;
 }
 
+/**
+ * Shows a BlueprintJS dialog with regex examples.
+ * Replaces the old iziToast.show() help popup.
+ */
 export const helpToast = (
   title = "Examples of regular expressions that could be useful:",
   msg = null,
 ) => {
   if (msg === null) msg = _examplesOfRegex;
-  iziToast.show({
-    maxWidth: 630,
-    title: title,
-    position: "center",
-    messageLineHeight: "22",
-    message: msg,
-    timeout: false,
-  });
+  const HelpDialog = ({ isOpen, onClose }) => (
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      style={{ maxWidth: 640, width: "90%" }}
+      enforceFocus={false}
+    >
+      <div className={Classes.DIALOG_BODY}>
+        <div
+          style={{ fontSize: 13, lineHeight: "1.6" }}
+          dangerouslySetInnerHTML={{ __html: msg }}
+        />
+      </div>
+      <div className={Classes.DIALOG_FOOTER}>
+        <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+          <Button text="Close" onClick={onClose} />
+        </div>
+      </div>
+    </Dialog>
+  );
+  renderOverlay({ Overlay: HelpDialog });
 };
 
 export const initializeGlobalVar = (close) => {
@@ -33,33 +54,37 @@ export const initializeGlobalVar = (close) => {
   state.matchingHidden = 0;
   state.matchArray.length = 0;
   state.matchingStringsArray.length = 0;
-  // state.seletionBlue = false;
 };
 
-export const displayMatchCountInTitle = function (toast) {
-  let toastTitle = toast.querySelector(".iziToast-title");
+/**
+ * Computes the current match count label and pushes it to the panel bridge
+ * so the React component re-renders automatically.
+ * Returns the label string (kept for backward compat with callers that use the return value).
+ */
+export const displayMatchCountInTitle = function () {
   let currentScroll = 0;
   let hiddenStr = "";
   if (state.matchingHidden > 0)
     hiddenStr = " (+" + state.matchingHidden + " in collapsed blocks)";
-  let unhighlightableElts = state.matchingTotal - state.eltFound.length;
+  let unhighlightableElts = state.matchingTotal - (state.eltFound ? state.eltFound.length : 0);
   let unhighlightableStr = "";
   if (unhighlightableElts > 0)
     unhighlightableStr =
       " (" +
       unhighlightableElts +
       " elements can't be highlighted, e.g. in code blocks)";
-  if (state.matchArray.length != 0) currentScroll = state.scrollIndex + 1;
-  let label =
+  if (state.matchArray.length !== 0) currentScroll = state.scrollIndex + 1;
+  const label =
     parseInt(currentScroll) +
     " / " +
     state.matchingTotal +
     hiddenStr +
     unhighlightableStr;
-  toastTitle.innerText = label;
+  updatePanelField("matchLabel", label);
   return label;
 };
 
-export const getCurrentToastLabel = function (toast) {
-  return toast.querySelector(".iziToast-title").innerText;
+/** Returns the current match label from the bridge (replaces DOM read). */
+export const getCurrentToastLabel = function () {
+  return getPanelState().matchLabel;
 };

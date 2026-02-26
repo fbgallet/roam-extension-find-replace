@@ -1,17 +1,34 @@
-import iziToast from "izitoast";
-import "../node_modules/izitoast/dist/css/iziToast.css";
+import React from "react";
+import ReactDOM from "react-dom";
 import { normalizeMention } from "./utils";
 
 import { insertChangedBlocks } from "./copyResults";
 import state from "./state";
 import { infoToast } from "./notifications";
-import { findAndReplaceInWholeGraph, setWholeGraphDeps } from "./wholeGraph";
+import {
+  findAndReplaceInWholeGraph,
+  openPageBlockConversionPanel,
+  setWholeGraphDeps,
+  doGraphReplace,
+  doGraphReplacePageNames,
+  doGraphBlockToPage,
+  doGraphPageToBlock,
+  doGraphDisplayResults,
+  doGraphDisplayResultsSidebar,
+  doGraphCopyRefs,
+  doPageTitlesReplace,
+  doPageTitlesDisplayResults,
+  doPageBlockDisplayResults,
+} from "./wholeGraph";
 import { onKeydown, getSelection, getWorkspaceNodes } from "./nodeTraversal";
 import {
   highlightAllMatches,
   expandPathBeforeHighlight,
   findAndHighlight,
   highlightString,
+  highlightNextMatch,
+  actualizeHighlights,
+  removeHighlightedNodes,
   setHighlightingDeps,
 } from "./highlighting";
 import {
@@ -23,6 +40,7 @@ import {
 import {
   appendPrepend,
   appendPrependDialog,
+  doAppendPrepend,
   changeBlockFormat,
   changeBlockFormatPrompt,
   setBlockOperationsDeps,
@@ -31,11 +49,19 @@ import {
   extractContentFromPageOrSelectionByRegex,
   setExtractContentDeps,
 } from "./extractContent";
-import { searchOnly, setSearchDialogDeps } from "./searchDialog";
+import {
+  searchOnly,
+  setSearchDialogDeps,
+  onSearchClose,
+  displaySearchResustsInPlainText,
+} from "./searchDialog";
 import {
   findAndReplace,
   replaceOpened,
   setFindReplaceDeps,
+  doReplace,
+  doReplaceAll,
+  onFindReplaceClose,
 } from "./findReplaceDialog";
 import {
   helpToast,
@@ -44,6 +70,9 @@ import {
   getCurrentToastLabel,
   setHelpersDeps,
 } from "./helpers";
+import { normalizeInputRegex } from "./utils";
+import { copyMatchingUidsToClipboard } from "./copyResults";
+import UnifiedSearchPanel from "./components/UnifiedSearchPanel";
 
 const referencesRegexStr =
   "/\\(\\([^\\)]{9}\\)\\)|#?\\[\\[[^[\\]]*\\]\\]|#[^\\s]*|.*::/";
@@ -94,10 +123,9 @@ const pageBlockConversionInstructions =
   "  - All forms of page mention are concerned: #page, #[[page]] and 'page::'.<br><br>" +
   "If 'Move source content' is checked, all blocks in the source page or all child blocks of the source block will be moved to the target block or page.";
 
-let iziToastColor = "#262626F0";
-
-// Search dialog extracted to searchDialog.js
-// Find & Replace dialog extracted to findReplaceDialog.js
+// Persistent React root for the unified search panel
+let _panelRoot = null;
+let _panelContainer = null;
 
 const selectedNodesProcessing = async (
   nodesArray,
@@ -144,18 +172,6 @@ const panelConfig = {
         items: ["Orange", "Blue", "Fuschia", "Green", "Silver", "Yellow"],
         onChange: (evt) => {
           setHighlightColor(evt);
-        },
-      },
-    },
-    {
-      id: "positionSetting",
-      name: "Dialog box position",
-      description: "Default position of the dialog box:",
-      action: {
-        type: "select",
-        items: ["topRight", "bottomRight", "bottomLeft", "topLeft"],
-        onChange: (evt) => {
-          state.iziToastPosition = evt;
         },
       },
     },
@@ -256,6 +272,27 @@ const panelConfig = {
         },
       },
     },
+    {
+      id: "panelPositionSetting",
+      name: "Search panel default position",
+      description:
+        "Initial position of the search/replace panel when no saved position exists (or saved position is off-screen):",
+      action: {
+        type: "select",
+        items: [
+          "top right",
+          "top left",
+          "bottom right",
+          "bottom left",
+          "center",
+          "center left",
+          "center right",
+        ],
+        onChange: (evt) => {
+          state.panelPosition = evt;
+        },
+      },
+    },
   ],
 };
 
@@ -350,9 +387,6 @@ export default {
     if (extensionAPI.settings.get("colorSetting") == null)
       await extensionAPI.settings.set("colorSetting", "Orange");
     setHighlightColor(extensionAPI.settings.get("colorSetting"));
-    if (extensionAPI.settings.get("positionSetting") == null)
-      await extensionAPI.settings.set("positionSetting", "topRight");
-    state.iziToastPosition = extensionAPI.settings.get("positionSetting");
     if (extensionAPI.settings.get("expandSetting") == null)
       await extensionAPI.settings.set("expandSetting", true);
     state.includeCollapsed = extensionAPI.settings.get("expandSetting");
@@ -380,6 +414,27 @@ export default {
     if (extensionAPI.settings.get("truncateSetting") == null)
       await extensionAPI.settings.set("truncateSetting", 150);
     state.codeBlockLimit = extensionAPI.settings.get("truncateSetting");
+
+    if (extensionAPI.settings.get("panelPositionSetting") == null)
+      await extensionAPI.settings.set("panelPositionSetting", "top right");
+    state.panelPosition = extensionAPI.settings.get("panelPositionSetting");
+
+    // Load last saved panel XY position (persisted across sessions)
+    const savedXY = extensionAPI.settings.get("panelLastXY");
+    if (
+      savedXY &&
+      typeof savedXY.x === "number" &&
+      typeof savedXY.y === "number" &&
+      savedXY.x >= 0 && savedXY.x < window.innerWidth - 50 &&
+      savedXY.y >= 0 && savedXY.y < window.innerHeight - 50
+    ) {
+      state.panelInitialXY = savedXY;
+    }
+
+    // Wire up the save callback so the panel can persist its position
+    state.savePanelXY = (x, y) => {
+      extensionAPI.settings.set("panelLastXY", { x, y });
+    };
 
     window.addEventListener("keydown", onKeydown);
 
@@ -470,7 +525,7 @@ export default {
           true,
         );
         if (mention === null) mention = "";
-        await findAndReplaceInWholeGraph(ptobLabel, "page to block", mention);
+        openPageBlockConversionPanel("pageToBlock", mention);
       },
     });
     extensionAPI.ui.commandPalette.addCommand({
@@ -483,7 +538,7 @@ export default {
           true,
         );
         if (mention === null) mention = "";
-        await findAndReplaceInWholeGraph(btopLabel, "block to page", mention);
+        openPageBlockConversionPanel("blockToPage", mention);
       },
     });
     extensionAPI.ui.commandPalette.addCommand({
@@ -553,14 +608,10 @@ export default {
       "display-conditional": (e) => e["block-string"].length > 0,
       callback: (e) => {
         state.wholeGraph = true;
-        findAndReplaceInWholeGraph(
-          btopLabel,
-          "block to page",
+        openPageBlockConversionPanel(
+          "blockToPage",
           normalizeMention(e["block-uid"], "block"),
           normalizeMention(e["block-string"], "page"),
-          false,
-          false,
-          true,
         );
       },
     });
@@ -569,41 +620,102 @@ export default {
       "display-conditional": (e) => e["block-string"].length == 0,
       callback: (e) => {
         state.wholeGraph = true;
-        findAndReplaceInWholeGraph(
-          btopLabel,
-          "page to block",
+        openPageBlockConversionPanel(
+          "pageToBlock",
           "",
           normalizeMention(e["block-uid"], "block"),
-          false,
-          false,
-          true,
         );
       },
     });
 
-    iziToast.settings({
-      theme: "dark",
-      class: "fr-toast",
-      color: iziToastColor,
-      position: state.iziToastPosition,
-      maxWidth: 375,
-      layout: 2,
-      zindex: 9,
-      drag: false,
-      timeout: false,
-      closeOnEscape: true,
-      closeOnClick: false,
-      overlay: false,
-      overlayClose: false,
-      displayMode: 2,
-      animateInside: false,
-    });
+    // Mount the persistent UnifiedSearchPanel React tree
+    _panelContainer = document.createElement("div");
+    _panelContainer.id = "fr-unified-panel-root";
+    document.body.appendChild(_panelContainer);
+    const root = ReactDOM.createRoot(_panelContainer);
+    _panelRoot = root;
+
+    const callbacks = {
+      // Page/workspace search
+      onActualizeHighlights: (findInput, ci, wo, expand, sl) =>
+        actualizeHighlights(findInput, ci, wo, expand, sl),
+      onHighlightNext: (shift) => highlightNextMatch(shift),
+      onRefresh: (findInput, ci, wo, expand, sl) =>
+        actualizeHighlights(findInput, ci, wo, expand, sl),
+      onRemoveHighlights: () => removeHighlightedNodes(),
+      onCopyRefs: (findInput, replaceInput, ci, sl, mode) =>
+        copyMatchingUidsToClipboard(findInput, replaceInput, ci, sl, mode),
+      onDisplayResults: (findInput, replaceInput, ci, wo, sl) => {
+        const promptParams = normalizeInputRegex(findInput, replaceInput, ci, wo, sl);
+        if (promptParams) displaySearchResustsInPlainText(promptParams, findInput);
+      },
+      onHelp: () => helpToast(),
+      // Page find & replace
+      onReplace: (findInput, replaceInput, ci, wo, sl) =>
+        doReplace(findInput, replaceInput, ci, wo, sl),
+      onReplaceAll: (findInput, replaceInput, ci, wo, sl) =>
+        doReplaceAll(findInput, replaceInput, ci, wo, sl),
+      // Lifecycle
+      onSearchClose: (findInput, ci, wo, expand, workspace) =>
+        onSearchClose(findInput, ci, wo, expand, workspace),
+      onFindReplaceClose: (findInput, replaceInput, ci, wo, expand, workspace) =>
+        onFindReplaceClose(findInput, replaceInput, ci, wo, expand, workspace),
+      // Graph actions
+      onGraphReplace: (findInput, replaceInput, ci, wo, sl) =>
+        doGraphReplace(findInput, replaceInput, ci, wo, sl),
+      onGraphReplacePageNames: (findInput, replaceInput) =>
+        doGraphReplacePageNames(findInput, replaceInput),
+      onGraphDisplayResults: (findInput, ci, wo, sl, graphSubMode, replaceInput) =>
+        doGraphDisplayResults(findInput, ci, wo, sl, graphSubMode, replaceInput),
+      onGraphDisplayResultsSidebar: (findInput, ci, wo, sl, graphSubMode) =>
+        doGraphDisplayResultsSidebar(findInput, ci, wo, sl, graphSubMode),
+      onGraphCopyRefs: (findInput, replaceInput, ci, wo, sl, graphSubMode) =>
+        doGraphCopyRefs(findInput, replaceInput, ci, wo, sl, graphSubMode),
+      // Page titles scope
+      onPageTitlesReplace: (findInput, replaceInput) =>
+        doPageTitlesReplace(findInput, replaceInput),
+      onPageTitlesDisplayResults: (findInput, replaceInput) =>
+        doPageTitlesDisplayResults(findInput, replaceInput),
+      // Append/Prepend tab — detect current selection, populate state, return block count
+      onCheckSelection: () => {
+        // Check both multiselect APIs before calling getSelection()
+        const dragSelected = document.querySelectorAll(".block-highlight-blue");
+        const cmdSelected = window.roamAlphaAPI.ui.individualMultiselect.getSelectedUids?.() ?? [];
+        const multiSelected = window.roamAlphaAPI.ui.multiselect.getSelected?.() ?? [];
+        if (dragSelected.length === 0 && cmdSelected.length === 0 && multiSelected.length === 0) {
+          state.expandedNodesUid = [];
+          return 0;
+        }
+        getSelection();
+        return state.expandedNodesUid.length;
+      },
+      onAppendPrepend: (prefix, suffix) => doAppendPrepend(prefix, suffix),
+      // Page⇔Block conversion tab
+      onPageToBlock: (findInput, replaceInput, moveContent) =>
+        doGraphPageToBlock(findInput, replaceInput, moveContent),
+      onBlockToPage: (findInput, replaceInput, moveContent) =>
+        doGraphBlockToPage(findInput, replaceInput, moveContent),
+      onPageBlockDisplayResults: (findInput, replaceInput, direction, moveContent) =>
+        doPageBlockDisplayResults(findInput, replaceInput, direction, moveContent),
+    };
+
+    root.render(
+      React.createElement(UnifiedSearchPanel, { callbacks }),
+    );
 
     console.log("Find & replace loaded.");
   },
   onunload: () => {
     window.removeEventListener("keydown", onKeydown);
-    window.removeEventListener("keydown", onKeyArrows);
+
+    if (_panelRoot) {
+      _panelRoot.unmount();
+      _panelRoot = null;
+    }
+    if (_panelContainer && _panelContainer.parentNode) {
+      _panelContainer.parentNode.removeChild(_panelContainer);
+      _panelContainer = null;
+    }
 
     roamAlphaAPI.ui.blockContextMenu.removeCommand({
       label: "Convert some [[page]] => this block",

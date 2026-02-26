@@ -3,14 +3,12 @@ const state = {
   includeCollapsed: false,
   excludeDuplicate: false,
   displayBefore: false,
-  iziToastPosition: undefined,
   showPath: true,
   wholeGraph: undefined,
   highlightColor: undefined,
   matchesSortedBy: "page",
   extractMatchesOnly: true,
   codeBlockLimit: 150,
-  iziToastColor: "#262626F0",
 
   selectionBlue: undefined,
   lastOperation: "",
@@ -29,7 +27,6 @@ const state = {
   inputBackup: [],
   refsUids: [],
   eltFound: undefined,
-  currentToast: null,
   scrollIndex: 0,
   matchIndex: 0,
   matchArray: [],
@@ -45,5 +42,10 @@ const state = {
   dialogTitle: undefined,
   submitParams: undefined,
   handleSubmit: undefined,
+
+  // Panel position preset (setting) and persistence helpers
+  panelPosition: "top right",
+  panelInitialXY: null,           // {x, y} loaded from extensionAPI on startup
+  savePanelXY: null,              // (x, y) => void — set by index.js after extensionAPI is ready
 };
 export default state;

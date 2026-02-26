@@ -11,8 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "izitoast": "^1.4.0",
-    "roamjs-components": "^0.72.6",
+"roamjs-components": "^0.72.6",
     "roamjs-scripts": "^0.21.10"
   }
 }
