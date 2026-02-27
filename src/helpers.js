@@ -1,7 +1,7 @@
 import React from "react";
 import { Dialog, Button, Classes } from "@blueprintjs/core";
 import renderOverlay from "roamjs-components/util/renderOverlay";
-import { updatePanelField, getPanelState } from "./panelBridge";
+import { updatePanelField } from "./panelBridge";
 import state from "./state";
 
 // Dependencies injected from index.js
@@ -82,9 +82,4 @@ export const displayMatchCountInTitle = function () {
     unhighlightableStr;
   updatePanelField("matchLabel", label);
   return label;
-};
-
-/** Returns the current match label from the bridge (replaces DOM read). */
-export const getCurrentToastLabel = function () {
-  return getPanelState().matchLabel;
 };

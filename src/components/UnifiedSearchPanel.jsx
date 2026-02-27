@@ -515,6 +515,9 @@ const UnifiedSearchPanel = ({ callbacks }) => {
         expandToHighlight,
         scope === "workspace",
       );
+    } else {
+      // appendPrepend / format / pageBlockConversion: clear frozen selection
+      callbacks.onClearFrozenNodes?.();
     }
     closePanel();
   };

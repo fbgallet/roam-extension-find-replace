@@ -1,9 +1,6 @@
-import React from "react";
 import { updateBlock, getBlockAttributes, normalizeInputRegex } from "./utils";
 import { openPanel } from "./panelBridge";
-import renderOverlay from "roamjs-components/util/renderOverlay";
 import state from "./state";
-import FormatChangeDialog from "./components/FormatChangeDialog";
 
 // Dependencies injected from index.js to avoid circular imports
 let _selectedNodesProcessing, _initializeGlobalVar, _replaceOpened, _referencesRegexStr;
@@ -34,7 +31,7 @@ export const appendPrepend = async (node, stringBefore, stringAfter) => {
     open: isOpened,
     page: node.page,
   });
-  updateBlock(uid, stringBefore + blockContent + stringAfter, isOpened);
+  await updateBlock(uid, stringBefore + blockContent + stringAfter, isOpened);
   state.changesNb++;
 };
 
@@ -151,33 +148,6 @@ export const doFormatChange = async (h, a, v, caseChange) => {
   state.seletionBlue = false;
   _initializeGlobalVar(true);
   state.changesNbBackup = state.changesNb;
-};
-
-export const changeBlockFormatPrompt = async function () {
-  state.changesNb = 0;
-
-  const onApply = async (h, a, v, caseChange) => {
-    await doFormatChange(h, a, v, caseChange);
-  };
-
-  renderOverlay({
-    Overlay: ({ isOpen, onClose }) => (
-      <FormatChangeDialog
-        isOpen={isOpen}
-        onClose={() => {
-          state.selectedBlocks = [];
-          state.seletionBlue = false;
-          _initializeGlobalVar(true);
-          state.changesNbBackup = state.changesNb;
-          onClose();
-        }}
-        onApply={async (h, a, v, caseChange) => {
-          await onApply(h, a, v, caseChange);
-          onClose();
-        }}
-      />
-    ),
-  });
 };
 
 export const caseBulkChange = async (change) => {

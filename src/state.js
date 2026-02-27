@@ -10,7 +10,7 @@ const state = {
   extractMatchesOnly: true,
   codeBlockLimit: 150,
 
-  selectionBlue: undefined,
+  seletionBlue: false,
   lastOperation: "",
   changesNb: 0,
   changesNbBackup: undefined,
@@ -42,6 +42,8 @@ const state = {
   dialogTitle: undefined,
   submitParams: undefined,
   handleSubmit: undefined,
+  submitButtonTitle: "Copy to clipboard",
+  cancelButtonTitle: "Close",
 
   // When true, getNodes() preserves expandedNodesUid instead of re-reading the page
   frozenNodes: false,

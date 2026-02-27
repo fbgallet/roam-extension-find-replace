@@ -36,7 +36,7 @@ export function setUndoRedoDeps({
 export const undoLastBulkOperation = async function () {
   if (state.lastOperation === "block to page") {
     state.lastOperation = "page to block";
-    changePageToBlock(
+    await changePageToBlock(
       state.inputBackup[1],
       state.inputBackup[0],
       state.inputBackup[4],
@@ -46,7 +46,7 @@ export const undoLastBulkOperation = async function () {
     state.inputBackup[0] = temp;
   } else if (state.lastOperation === "page to block") {
     state.lastOperation = "block to page";
-    changeBlockToPage(
+    await changeBlockToPage(
       state.inputBackup[1],
       state.inputBackup[0],
       state.inputBackup[4],
@@ -324,7 +324,7 @@ export const redoPopup = async function () {
               alert("No bulk operation has been run.");
               return;
             case "Undo":
-              undoLastBulkOperation();
+              await undoLastBulkOperation();
               break;
             case "Append and/or Prepend":
               callback = _appendPrepend;

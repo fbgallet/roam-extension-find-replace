@@ -5,22 +5,17 @@ import {
   removeDuplicateBlocks,
   resolveReferences,
 } from "./utils";
-import { copyMatchingUidsToClipboard } from "./copyResults";
-import { infoToast } from "./notifications";
 import {
   highlightNextMatch,
   actualizeHighlights,
   removeHighlightedNodes,
 } from "./highlighting";
-import { displaySearchResustsInPlainText } from "./searchDialog";
-import { openPanel, closePanel } from "./panelBridge";
+import { openPanel } from "./panelBridge";
 import state from "./state";
 
 // Dependencies injected from index.js to avoid circular imports
 let _initializeGlobalVar,
   _displayMatchCountInTitle,
-  _getCurrentToastLabel,
-  _helpToast,
   _selectedNodesProcessing,
   _undoPopup,
   _referencesRegex;
@@ -28,16 +23,12 @@ let _initializeGlobalVar,
 export function setFindReplaceDeps({
   initializeGlobalVar,
   displayMatchCountInTitle,
-  getCurrentToastLabel,
-  helpToast,
   selectedNodesProcessing,
   undoPopup,
   referencesRegex,
 }) {
   _initializeGlobalVar = initializeGlobalVar;
   _displayMatchCountInTitle = displayMatchCountInTitle;
-  _getCurrentToastLabel = getCurrentToastLabel;
-  _helpToast = helpToast;
   _selectedNodesProcessing = selectedNodesProcessing;
   _undoPopup = undoPopup;
   _referencesRegex = referencesRegex;
@@ -54,40 +45,29 @@ export const findAndReplace = async function (
   wordOnly = false,
   expandToHighlight = false,
   workspaceArg = false,
-  position,
   refresh = true,
 ) {
   if (refresh) _initializeGlobalVar();
   state.formatChange = false;
-  let excludeDuplicateBackup = state.excludeDuplicate;
   state.excludeDuplicate = true;
   if (workspaceArg != null) state.workspace = workspaceArg;
 
-  // Determine scope
   const scope = state.workspace ? "workspace" : "page";
-
-  // Restore previous inputs if available
-  let fi = findInput;
-  let ri = replaceInput;
-  let ci = caseInsensitive;
-  let wo = wordOnly;
-  let ex = expandToHighlight;
-  let ws = state.workspace;
 
   openPanel({
     mode: "findReplace",
     scope,
     label: label || "Find & Replace",
-    findInput: fi,
-    replaceInput: ri,
-    caseInsensitive: ci,
-    wordOnly: wo,
-    expandToHighlight: ex,
+    findInput,
+    replaceInput,
+    caseInsensitive,
+    wordOnly,
+    expandToHighlight,
     searchLogic: "",
   });
 
-  if (fi !== "" && fi.length > 1 && refresh) {
-    actualizeHighlights(fi, ci, wo, ex, "");
+  if (findInput !== "" && findInput.length > 1 && refresh) {
+    actualizeHighlights(findInput, caseInsensitive, wordOnly, expandToHighlight, "");
   }
 };
 
@@ -356,7 +336,7 @@ export const replaceOpened = async (
     }
     let push = true;
     if (state.changesNbBackup > 0)
-      push = state.modifiedBlocksCopy.filter((b) => b.uid === uid) == 0;
+      push = state.modifiedBlocksCopy.filter((b) => b.uid === uid).length == 0;
     if (push)
       state.modifiedBlocksCopy.push({
         uid: uid,

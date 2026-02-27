@@ -1,8 +1,17 @@
-## v.10 (February 2026)
+## v.10 (February 2026) Complete refactoring
 
 ### New features:
 
-- Input history with favorites: all text inputs (find, replace, prepend, append) now remember the last 10 strings used. Click the history icon on the right of any input to pick from recent values. Pin entries as favorites (⭐) to keep them permanently at the top of the list, beyond the 10-item limit. History is persisted across sessions.
+- Input history with favorites: all text inputs (find, replace, prepend, append) now remember the last 10 strings used.
+- Filter, sort and select matching blocks of search results or before applying Replace all
+- View search result as raw text or rendered blocks
+- Commands in context menu of multiselection (for F&R or bulk operations), page reference and page title (for Page => Block conversion)
+
+### Updates
+
+- Complete overhaul of the UI: unified draggable panel for almost all features
+- Clearer scope of search or find & replace: block(s)/page/workspace/graph
+- In the background: complete refactoring of the codebase (for easier maintenance in the future)
 
 ## v.9 (January 1st, 2025)
 

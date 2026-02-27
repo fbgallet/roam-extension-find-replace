@@ -35,29 +35,23 @@ import PageNamesList from "./components/PageNamesList";
 
 // Dependencies injected from index.js to avoid circular imports
 let _initializeGlobalVar,
-  _helpToast,
   _replaceOpened,
   _highlightString,
   _highlightAllMatches,
-  _undoPopup,
-  _pageBlockConversionInstructions;
+  _undoPopup;
 
 export function setWholeGraphDeps({
   initializeGlobalVar,
-  helpToast,
   replaceOpened,
   highlightString,
   highlightAllMatches,
   undoPopup,
-  pageBlockConversionInstructions,
 }) {
   _initializeGlobalVar = initializeGlobalVar;
-  _helpToast = helpToast;
   _replaceOpened = replaceOpened;
   _highlightString = highlightString;
   _highlightAllMatches = highlightAllMatches;
   _undoPopup = undoPopup;
-  _pageBlockConversionInstructions = pageBlockConversionInstructions;
 }
 
 /******************************************************************************************
@@ -71,8 +65,6 @@ export const findAndReplaceInWholeGraph = async function (
   replaceInput = "",
   caseInsensitive = false,
   wordOnly = false,
-  moveContent = false,
-  position,
   refresh = true,
 ) {
   if (refresh) _initializeGlobalVar();
@@ -114,27 +106,6 @@ export const openPageBlockConversionPanel = function (
 };
 
 /**
- * Called by UnifiedSearchPanel "Search" button in graph scope.
- */
-export const doGraphSearch = async (findInput, caseInsensitive, wordOnly, searchLogic) => {
-  _initializeGlobalVar();
-  const promptParameters = normalizeInputRegex(
-    findInput, "", caseInsensitive, wordOnly, searchLogic, false, true,
-  );
-  if (findInput.length > 0) {
-    await wholeGraphProcessing(promptParameters, false);
-    displayWholeGraphCountInTitle();
-    if (state.matchArray.length > 0) {
-      displayResultsInPlainText(
-        state.matchArray.length + " blocks in your graph containing matching strings",
-        promptParameters,
-        findInput,
-      );
-    }
-  }
-};
-
-/**
  * Called by UnifiedSearchPanel "Replace" button in graph scope.
  */
 export const doGraphReplace = async (findInput, replaceInput, caseInsensitive, wordOnly, searchLogic) => {
@@ -150,7 +121,7 @@ export const doGraphReplace = async (findInput, replaceInput, caseInsensitive, w
 export const doGraphReplacePageNames = async (findInput, replaceInput) => {
   const promptParameters = normalizeInputRegex(findInput, replaceInput, false, false, "", false, false);
   if (findInput.length > 0) {
-    wholeGraphPageNameProcessing(promptParameters, false);
+    await wholeGraphPageNameProcessing(promptParameters, false);
     displayWholeGraphCountInTitle(state.changesNb + " matching [[page names]]");
     if (state.matchArray.length > 0) displayPageNamesResults(...promptParameters);
   }
@@ -332,7 +303,7 @@ export const displayResultsInPlainText = (
   const isMatchesOnly = state.extractMatchesOnly && isRegex(findInput);
 
   if (isMatchesOnly) {
-    if (state.matchingStringsArray[0].groups.length > 0) {
+    if (state.matchingStringsArray.length > 0 && state.matchingStringsArray[0].groups.length > 0) {
       state.matchingStringsArray.forEach((match) => {
         match.replace && (match.content = match.replace);
       });
@@ -459,7 +430,7 @@ const warningPopupWholeGraph = async (
         while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
         switch (mode) {
           case "replace page names":
-            await wholeGraphPageNameProcessing([find, replace], true, null, arrayToProcess);
+            await wholeGraphPageNameProcessing([find, replace], true, arrayToProcess);
             break;
           case "block to page":
             await changeBlockToPage(find, replace, moveContent);
@@ -489,7 +460,6 @@ const warningPopupWholeGraph = async (
 const wholeGraphProcessing = async (
   promptParameters,
   makeChanges = true,
-  toast = null,
 ) => {
   let find = promptParameters[0];
   let replace = promptParameters[1];
@@ -500,26 +470,8 @@ const wholeGraphProcessing = async (
   if (state.matchArray.length == 0) {
     _initializeGlobalVar();
     const all = getAllBlockData();
-    //console.log(all);
     const totalBlocksNb = all.length;
-    // infoToast(
-    //   "Searching in the whole graph (it can takes a few seconds if there is a lot of blocks)...",
-    //   totalBlocksNb / 15
-    // );
-    // console.log(totalBlocksNb + " blocks to process");
-    let ratio = 10;
     for (let i = 0; i < totalBlocksNb; i++) {
-      // TODO : progress indicator, needed for large graph
-      // const ratioCst = ratio;
-      // if (i > totalBlocksNb * (ratioCst / 100)) {
-      //   if (toast != null)
-      //     displayWholeGraphCountInTitle(
-      //       toast,
-      //       "Processing... (" + ratioCst + "%)"
-      //     );
-      //   console.log("Processing... (" + ratioCst + "%)");
-      //   ratio = ratioCst + 10;
-      // }
       if (all[i].text != "") {
         let node = new Node(all[i].uid, {
           string: all[i].text,
@@ -528,13 +480,8 @@ const wholeGraphProcessing = async (
         await _replaceOpened(node, find, replace, searchLogic, makeChanges);
       }
     }
-    //toast.instance.hide({ transitionOut: "fadeOut" }, toast.toast);
   } else if (makeChanges) {
     state.changesNb = 0;
-    // toast = infoToast(
-    //   "Processing the whole graph (it can takes a few seconds if there is a lot of blocks)..."
-    // );
-
     for (const match of state.matchArray) {
       let node = new Node(match.uid, {
         string: match.content,
@@ -543,9 +490,7 @@ const wholeGraphProcessing = async (
       });
       await _replaceOpened(node, find, replace, "", makeChanges);
     }
-    //toast.instance.hide({ transitionOut: "fadeOut" }, toast.toast, "button");
   }
-  //console.log(state.matchArray);
 };
 
 // Processes only the blocks whose uids are in selectedUids (array of uid strings)
@@ -566,15 +511,10 @@ const wholeGraphProcessingSelected = async (selectedUids, find, replace) => {
 const wholeGraphPageNameProcessing = async (
   promptParameters,
   makeChanges = true,
-  toast = null,
   arrayToProcess,
 ) => {
   let findRegex = promptParameters[0];
   let replace = promptParameters[1];
-  let searchLogic = "";
-  if (promptParameters.length > 2) {
-    searchLogic = promptParameters[2];
-  }
   if (state.matchArray.length == 0) {
     _initializeGlobalVar();
     const matchingPages = getPagesNamesMatchingRegex(findRegex);
@@ -598,9 +538,7 @@ const wholeGraphPageNameProcessing = async (
       });
     }
     state.lastOperation = "Find and Replace page names";
-    //toast.hide({ transitionOut: "fadeOut" }, toast.toast, "button");
   }
-  //console.log(state.matchArray);
 };
 
 /******************************************************************************************

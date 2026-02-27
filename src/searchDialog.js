@@ -3,11 +3,8 @@ import {
   isRegex,
   removeDuplicateBlocks,
 } from "./utils";
-import { copyMatchingUidsToClipboard } from "./copyResults";
-import { infoToast } from "./notifications";
 import {
   actualizeHighlights,
-  highlightCurrentSearch,
   removeHighlightedNodes,
 } from "./highlighting";
 import { displayResultsInPlainText } from "./wholeGraph";
@@ -16,26 +13,17 @@ import state from "./state";
 
 // Dependencies injected from index.js to avoid circular imports
 let _initializeGlobalVar,
-  _findAndReplace,
   _selectedNodesProcessing,
-  _replaceOpened,
-  _displayMatchCountInTitle,
-  _getCurrentToastLabel;
+  _replaceOpened;
 
 export function setSearchDialogDeps({
   initializeGlobalVar,
-  findAndReplace,
   selectedNodesProcessing,
   replaceOpened,
-  displayMatchCountInTitle,
-  getCurrentToastLabel,
 }) {
   _initializeGlobalVar = initializeGlobalVar;
-  _findAndReplace = findAndReplace;
   _selectedNodesProcessing = selectedNodesProcessing;
   _replaceOpened = replaceOpened;
-  _displayMatchCountInTitle = displayMatchCountInTitle;
-  _getCurrentToastLabel = getCurrentToastLabel;
 }
 
 /******************************************************************************************

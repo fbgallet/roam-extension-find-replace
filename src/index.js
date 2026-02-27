@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { normalizeMention } from "./utils";
+import { normalizeMention, getPageNameByPageUid } from "./utils";
 
 import { insertChangedBlocks } from "./copyResults";
 import state from "./state";
@@ -20,7 +20,12 @@ import {
   doPageTitlesDisplayResults,
   doPageBlockDisplayResults,
 } from "./wholeGraph";
-import { onKeydown, getSelection, getWorkspaceNodes } from "./nodeTraversal";
+import {
+  onKeydown,
+  getSelection,
+  getWorkspaceNodes,
+  getSelectionFromMsContextMenuArgs,
+} from "./nodeTraversal";
 import {
   highlightAllMatches,
   expandPathBeforeHighlight,
@@ -67,7 +72,6 @@ import {
   helpToast,
   initializeGlobalVar,
   displayMatchCountInTitle,
-  getCurrentToastLabel,
   setHelpersDeps,
 } from "./helpers";
 import { normalizeInputRegex } from "./utils";
@@ -112,17 +116,6 @@ const examplesOfRegex =
   "- <code>[$RegEx]([[page]])</code> make each machting string as an alias of [[page]],<br>" +
   "- <code>$1</code> replace each matching string (e.g. page references) by the first capture group (e.g. the page name),<br>" +
   "- <code>**$1** n°$2</code> insert two capture groups in a new formated string";
-const pageBlockConversionInstructions =
-  "<strong>This operation is dangerous, it can have unintended consequences.</strong><br>" +
-  "Before pressing on 'Confirm', you should make a quick review of the blocks that will be concerned by a change, by pressing the 🔎︎ button.<br><br>" +
-  "<strong>Block => Page</strong><br>" +
-  "  - All block ((reference)) mentions will be replaced by the [[page]] mention.<br><br>" +
-  "<strong>Page => Block</strong><br>" +
-  "  - All [[page]] mentions will be replaced by the block ((reference)).<br>" +
-  "  - If 'DNP' or nothing is entered in block field, a the block will be created at the end of the Today's page.<br>" +
-  "  - All forms of page mention are concerned: #page, #[[page]] and 'page::'.<br><br>" +
-  "If 'Move source content' is checked, all blocks in the source page or all child blocks of the source block will be moved to the target block or page.";
-
 // Persistent React root for the unified search panel
 let _panelRoot = null;
 let _panelContainer = null;
@@ -322,12 +315,10 @@ function setHighlightColor(color) {
 // Wire up dependencies for extracted modules
 setWholeGraphDeps({
   initializeGlobalVar,
-  helpToast,
   replaceOpened,
   highlightString,
   highlightAllMatches,
   undoPopup,
-  pageBlockConversionInstructions,
 });
 
 setHighlightingDeps({
@@ -360,18 +351,13 @@ setExtractContentDeps({
 
 setSearchDialogDeps({
   initializeGlobalVar,
-  findAndReplace,
   selectedNodesProcessing,
   replaceOpened,
-  displayMatchCountInTitle,
-  getCurrentToastLabel,
 });
 
 setFindReplaceDeps({
   initializeGlobalVar,
   displayMatchCountInTitle,
-  getCurrentToastLabel,
-  helpToast,
   selectedNodesProcessing,
   undoPopup,
   referencesRegex,
@@ -399,9 +385,6 @@ export default {
     if (extensionAPI.settings.get("beforeSetting") == null)
       await extensionAPI.settings.set("beforeSetting", false);
     state.displayBefore = extensionAPI.settings.get("beforeSetting");
-    // if (extensionAPI.settings.get("wholeSetting") == null)
-    //   extensionAPI.settings.set("wholeSetting", false);
-    // allowWhole = extensionAPI.settings.get("wholeSetting");
     if (extensionAPI.settings.get("sortSetting") == null)
       await extensionAPI.settings.set("sortSetting", "page");
     state.matchesSortedBy = extensionAPI.settings.get("sortSetting");
@@ -511,7 +494,6 @@ export default {
         await findAndReplaceInWholeGraph(swgLabel, "search");
       },
     });
-    //    if (allowWhole) loadWholeGraphCommand();
     extensionAPI.ui.commandPalette.addCommand({
       label: frgLabel,
       callback: async () => {
@@ -616,7 +598,7 @@ export default {
       },
     });
 
-    roamAlphaAPI.ui.blockContextMenu.addCommand({
+    window.roamAlphaAPI.ui.blockContextMenu.addCommand({
       label: "Convert this block => [[Page]]",
       "display-conditional": (e) => e["block-string"].length > 0,
       callback: (e) => {
@@ -628,7 +610,7 @@ export default {
         );
       },
     });
-    roamAlphaAPI.ui.blockContextMenu.addCommand({
+    window.roamAlphaAPI.ui.blockContextMenu.addCommand({
       label: "Convert some [[page]] => this block",
       "display-conditional": (e) => e["block-string"].length == 0,
       callback: (e) => {
@@ -637,6 +619,64 @@ export default {
           "pageToBlock",
           "",
           normalizeMention(e["block-uid"], "block"),
+        );
+      },
+    });
+
+    // Multiselect context menu commands
+    window.roamAlphaAPI.ui.msContextMenu.addCommand({
+      label: "Find & Replace: Find & Replace in selection",
+      callback: (args) => {
+        getSelectionFromMsContextMenuArgs(args);
+        findAndReplace("Find & Replace in page or workspace", "");
+      },
+    });
+    window.roamAlphaAPI.ui.msContextMenu.addCommand({
+      label: "Find & Replace: Prepend or append to selection",
+      callback: (args) => {
+        state.changesNb = 0;
+        getSelectionFromMsContextMenuArgs(args);
+        openPanel({
+          mode: "appendPrepend",
+          label: "Prepend or append to selected blocks",
+        });
+      },
+    });
+    window.roamAlphaAPI.ui.msContextMenu.addCommand({
+      label: "Find & Replace: Bulk change format of selection",
+      callback: (args) => {
+        state.changesNb = 0;
+        state.formatChange = false;
+        getSelectionFromMsContextMenuArgs(args);
+        openPanel({
+          mode: "format",
+          label: "Bulk change format of selected blocks",
+        });
+      },
+    });
+
+    // Page context menu commands
+    window.roamAlphaAPI.ui.pageContextMenu.addCommand({
+      label: "Find & Replace: Page ⇒ Block conversion",
+      callback: (args) => {
+        state.wholeGraph = true;
+        const pageName = args["page-title"] ?? "";
+        openPageBlockConversionPanel(
+          "pageToBlock",
+          normalizeMention(pageName, "page"),
+        );
+      },
+    });
+
+    // Page reference context menu commands
+    window.roamAlphaAPI.ui.pageRefContextMenu.addCommand({
+      label: "Find & Replace: Page ⇒ Block conversion",
+      callback: (args) => {
+        state.wholeGraph = true;
+        const pageName = getPageNameByPageUid(args["ref-uid"]) ?? "";
+        openPageBlockConversionPanel(
+          "pageToBlock",
+          normalizeMention(pageName, "page"),
         );
       },
     });
@@ -728,6 +768,10 @@ export default {
         doPageTitlesDisplayResults(findInput, replaceInput),
       // Append/Prepend tab — detect current selection, populate state, return block count
       onCheckSelection: () => {
+        // If nodes were pre-populated from a context menu (frozenNodes), return count directly
+        if (state.frozenNodes && state.expandedNodesUid.length > 0) {
+          return state.expandedNodesUid.length;
+        }
         // Check both multiselect APIs before calling getSelection()
         const dragSelected = document.querySelectorAll(".block-highlight-blue");
         const cmdSelected =
@@ -745,6 +789,9 @@ export default {
         }
         getSelection();
         return state.expandedNodesUid.length;
+      },
+      onClearFrozenNodes: () => {
+        state.frozenNodes = false;
       },
       onAppendPrepend: (prefix, suffix) => doAppendPrepend(prefix, suffix),
       onFormatChange: (h, a, v, caseChange) =>
@@ -784,11 +831,26 @@ export default {
       _panelContainer = null;
     }
 
-    roamAlphaAPI.ui.blockContextMenu.removeCommand({
+    window.roamAlphaAPI.ui.blockContextMenu.removeCommand({
       label: "Convert some [[page]] => this block",
     });
-    roamAlphaAPI.ui.blockContextMenu.removeCommand({
+    window.roamAlphaAPI.ui.blockContextMenu.removeCommand({
       label: "Convert this block => [[Page]]",
+    });
+    window.roamAlphaAPI.ui.msContextMenu.removeCommand({
+      label: "Find & Replace: Find & Replace in selection",
+    });
+    window.roamAlphaAPI.ui.msContextMenu.removeCommand({
+      label: "Find & Replace: Prepend or append to selection",
+    });
+    window.roamAlphaAPI.ui.msContextMenu.removeCommand({
+      label: "Find & Replace: Bulk change format of selection",
+    });
+    window.roamAlphaAPI.ui.pageContextMenu.removeCommand({
+      label: "Find & Replace: Page ⇒ Block conversion",
+    });
+    window.roamAlphaAPI.ui.pageRefContextMenu.removeCommand({
+      label: "Find & Replace: Page ⇒ Block conversion",
     });
     console.log("Find & replace unloaded.");
   },

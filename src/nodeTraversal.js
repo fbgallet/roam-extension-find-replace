@@ -9,14 +9,9 @@ import {
 import state from "./state";
 import Node, { setGetNodesFromTree } from "./nodeModel";
 
-export const onKeydown = async (e) => {
+export const onKeydown = (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key == "s") {
-    // let selection = getSelection();
-    // await getNodes();
-    // if (selection === null) selection = "";
-    // searchOnly(selection);
     e.preventDefault();
-    return;
   }
 };
 
@@ -264,6 +259,18 @@ export function getNodesFromTree(
         );
     }
   }
+}
+
+/**
+ * Populate state.expandedNodesUid from args.blocks provided by msContextMenu callbacks.
+ * This avoids calling getSelection() (which simulates a click and clears the selection).
+ */
+export function getSelectionFromMsContextMenuArgs(args) {
+  initializeNodesArrays();
+  state.seletionBlue = false;
+  const uids = (args?.blocks ?? []).map((b) => b["block-uid"]);
+  getCheckedNodes(uids);
+  state.frozenNodes = true;
 }
 
 // Wire up the lazy reference in nodeModel
