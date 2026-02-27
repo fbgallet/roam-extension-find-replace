@@ -2,7 +2,7 @@
 
 **Way more than a simple Find & Replace: a versatile and powerful tool for search supporting regex and bulk operations (update content following a given pattern, append, prepend, change format, bulk page titles change...).**
 
-![F R gif demo 2](https://user-images.githubusercontent.com/74436347/206271356-ef6d6085-8280-4b53-a622-bed4e733dcd9.gif)
+![F R v10 demo](https://github.com/user-attachments/assets/d76b6eee-1362-468c-809d-b0cbd72d2895)
 
 ### 🆕 in v.10 (February 2026):
 
@@ -30,8 +30,6 @@
 
 ## - Search in page
 
-![F R - Search in page](https://user-images.githubusercontent.com/74436347/202797471-b43fd997-a8f3-4896-af20-29948961a7ed.png)
-
 Press `Ctrl + S` to open a search box similar to the browsers' search box usually called with Ctrl+F: the search results are instantly highlighted in the current page and switching from one to the other automatically scrolls the display.
 
 But this search box is specially designed for Roam Research since it detects the words hidden in the collapsed blocks and expands them automatically, by checking `Auto-expand blocks` option.
@@ -55,8 +53,6 @@ You can copy the block references with '((📋))' and paste them anywhere in you
 The search engine support regular expressions, so that any kind of pattern can be found. [See below for more details and examples](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#about-regex-support).
 
 ## - Search in the whole graph
-
-![F R - Search in graph](https://user-images.githubusercontent.com/74436347/202821174-4167e496-bbc5-4d32-afaf-160701c260e2.png)
 
 Set search scope to "Graph" (or run `Find & Replace: Whole graph search` in the command Palette (just enter 'wg')). Click on `🔎︎` to open a dialog displaying the matching blocks in plain text or rendered as editable Roam blocks.
 
@@ -90,8 +86,6 @@ It can also be used to replace different writings of a word in a given alias. Su
 
 ### Find & Replace in whole Graph (Warning: danger zone!):
 
-![F R - in graph](https://user-images.githubusercontent.com/74436347/202827469-4454ca34-b361-434b-912b-70224e809470.png)
-
 With great caution ⚠️, you can search and replace some string in the whole graph. Don't forget that a string can be a subset of another string that we haven't imagined. The operation can theoretically be undone (with the Undo command below, not with Cmd-Ctrl + Z), but only immediately, not after a graph reload or after other find and research operations, unless you click on 'display changed blocks in sidebar'. A warning message will request confirmation and indicate the number of blocks that will be modified.
 
 For more safety, the `🔎︎` feature allows you to have a quick overview of blocks that will be changed before doing it. The results dialog (described above in the _Search in the whole graph_ section) is the same interactive component: you can filter, sort, switch between text and rendered view, select blocks, and open them in the sidebar before committing to any replacement.
@@ -112,9 +106,7 @@ If this option is enabled (in the setting panel), not the entire blocks but only
 
 ## Block <=> Page conversion
 
-![image](https://user-images.githubusercontent.com/74436347/202827676-c014f2e3-d9a3-42e9-bc51-dbb46b1b465e.png)
-
-![image](https://user-images.githubusercontent.com/74436347/202827749-4e65964a-2b03-453a-8135-b62a3f3031de.png)
+<img width="408" height="280" alt="image" src="https://github.com/user-attachments/assets/2749259c-5a2e-471d-80c4-b78b23e6091e" />
 
 Convert a given page in a block, and replace in bulk all its references in block references, or the opposite ! It's now as easy as a simple Find & Replace: enter the name of the page (or block reference), then enter a block reference where the page will be converted as the original block to witch all the references will linked (or a new page name).
 
@@ -131,7 +123,7 @@ The Page => Block conversion command is also available in page and page referenc
 
 ## `Bulk change format of selected blocks` command:
 
-![F R - format](https://user-images.githubusercontent.com/74436347/202827539-64b45e04-647c-44d1-9119-7aebe0f58042.png)
+<img width="414" height="307" alt="image" src="https://github.com/user-attachments/assets/72f5237f-5a42-4e1e-a4c5-9b3ca125cb79" />
 
 Apply to a selection of blocks (and only the visible ones), you can bulk change:
 
@@ -144,7 +136,7 @@ This command is also available in multiselect context menu.
 
 ## `Prepend or append content to selected blocks` command:
 
-![F R - append](https://user-images.githubusercontent.com/74436347/202827636-ec408223-091b-4352-b1b7-2d60d9b9feb9.png)
+<img width="413" height="232" alt="image" src="https://github.com/user-attachments/assets/638988e3-2cc1-4425-80a9-86e080d7d897" />
 
 Insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (append) of selected blocks. Only expanded blocks are concerned.
 
