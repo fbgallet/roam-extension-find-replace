@@ -442,11 +442,11 @@ export const highlightString = (
       case "rm-page-ref rm-page-ref--tag": // tag
         node = node.childNodes[0];
         break;
-      case "bp3-popover-wrapper": // block ref or alias
-        node = node.childNodes[0].childNodes[0].childNodes[0];
-        if (node.nodeType != 3) {
-          // block ref
-          let blockRef = node.parentNode.dataset.uid;
+      case "bp3-popover-wrapper": {
+        // block ref or alias: find .rm-block-ref if present
+        let blockRefEl = node.querySelector(".rm-block-ref");
+        if (blockRefEl) {
+          let blockRef = blockRefEl.dataset.uid;
           if (
             state.excludeDuplicate &&
             !state.matchRefsArray.includes(blockRef)
@@ -456,13 +456,16 @@ export const highlightString = (
               state.uniqueReferences.splice(index, 1);
             } else return;
           }
-          node = node.childNodes;
-          for (let i = 0; i < node.length; i++) {
-            highlightString(node[i], find, replace, uid, blockRef);
+          let blockRefChildren = blockRefEl.childNodes;
+          for (let i = 0; i < blockRefChildren.length; i++) {
+            highlightString(blockRefChildren[i], find, replace, uid, blockRef);
           }
           return;
         }
+        // alias: dive to the text node
+        node = node.childNodes[0].childNodes[0].childNodes[0];
         break;
+      }
       case "rm-block-ref dont-focus-block ": // block ref 2nd level
         node = node.childNodes[0].childNodes[0];
         let upperLevelRef = new Node(bref, getBlockAttributes(bref));
@@ -472,11 +475,35 @@ export const highlightString = (
       case "rm-inline-code-block": // code block // TODO ?
         node = node.childNodes[0];
         break;
-      default:
-        if (node.outerHTML.includes("<code>")) {
+      default: {
+        if (node.outerHTML && node.outerHTML.includes("<code>")) {
           // TODO
         }
-        if (node.childNodes) {
+        // Check if this node contains a block ref (any nesting depth)
+        let innerBlockRef = node.querySelector && node.querySelector(".rm-block-ref");
+        if (innerBlockRef) {
+          let blockRef = innerBlockRef.dataset.uid;
+          if (
+            state.excludeDuplicate &&
+            !state.matchRefsArray.includes(blockRef)
+          ) {
+            if (state.uniqueReferences.includes(blockRef)) {
+              let index = state.uniqueReferences.indexOf(blockRef);
+              state.uniqueReferences.splice(index, 1);
+            } else return;
+          }
+          let blockRefChildren = innerBlockRef.childNodes;
+          for (let i = 0; i < blockRefChildren.length; i++) {
+            highlightString(blockRefChildren[i], find, replace, uid, blockRef);
+          }
+          return;
+        }
+        if (node.childNodes && node.childNodes.length > 0) {
+          // If the only child is a text node, dive directly into it
+          if (node.childNodes[0].nodeType === 3) {
+            node = node.childNodes[0];
+            break;
+          }
           className = node.childNodes[0].className;
           switch (className) {
             case "bp3-popover-wrapper": // alias
@@ -494,6 +521,7 @@ export const highlightString = (
               else return;
           }
         } else return;
+      }
     }
     highlightString(node, find, replace, uid, bref);
   }
