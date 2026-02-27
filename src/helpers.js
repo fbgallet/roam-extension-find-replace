@@ -35,6 +35,16 @@ export const helpToast = (
         />
       </div>
       <div className={Classes.DIALOG_FOOTER}>
+        <div style={{ fontSize: 12, color: "#888", marginBottom: 8 }}>
+          <strong>How to support my work?</strong>{" "}
+          Become a{" "}
+          <a href="https://github.com/sponsors/fbgallet" target="_blank" rel="noreferrer">Github sponsor</a>,{" "}
+          <a href="https://buymeacoffee.com/fbgallet" target="_blank" rel="noreferrer">buy me a coffee</a>{" "}
+          or follow @fbgallet on{" "}
+          <a href="https://x.com/fbgallet" target="_blank" rel="noreferrer">X</a>,{" "}
+          on <a href="https://bsky.app/profile/fbgallet.bsky.social" target="_blank" rel="noreferrer">Bluesky</a>{" "}
+          or on <a href="https://mastodon.social/@fbgallet" target="_blank" rel="noreferrer">Mastodon</a>
+        </div>
         <div className={Classes.DIALOG_FOOTER_ACTIONS}>
           <Button text="Close" onClick={onClose} />
         </div>

@@ -134,8 +134,19 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   // Track whether the panel was open on the previous notification
   const wasOpenRef = useRef(false);
 
+  // Ref for the find input — used to auto-focus on open
+  const findInputRef = useRef(null);
+
   // Stable ref so the subscribe callback can call checkSelection without stale closure
   const checkSelectionRef = useRef(null);
+
+  // ── Auto-focus find input when panel opens on search/findReplace tabs ──
+  useEffect(() => {
+    if (isOpen && (mode === "search" || mode === "findReplace")) {
+      // Small delay to let the DOM settle after conditional rendering
+      setTimeout(() => findInputRef.current?.focus(), 50);
+    }
+  }, [isOpen, mode]);
 
   // ── Subscribe to bridge ──
   useEffect(() => {
@@ -467,10 +478,7 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   };
 
   const handleAppendPrepend = () => {
-    // Re-check selection at apply time in case user selected after opening
-    const count = callbacks.onCheckSelection();
-    setSelectionCount(count);
-    if (!count) return;
+    if (!selectionCount) return;
     addToHistory(callbacks.extensionAPI, HISTORY_PREFIX_SUFFIX, prefixInput);
     addToHistory(callbacks.extensionAPI, HISTORY_PREFIX_SUFFIX, suffixInput);
     callbacks.onAppendPrepend(prefixInput, suffixInput);
@@ -591,7 +599,7 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   }
 
   // Placeholders for search/findReplace
-  let findPlaceholder = "Find… (support /regex/g, help via ❔)";
+  let findPlaceholder = "Find… (support /regex/g, help via ？)";
   let replacePlaceholder = "Replace by… blank=delete, $RegEx=match";
   if (isGraphScope && isFindReplaceMode) {
     if (graphSubMode === "replace page names") {
@@ -957,10 +965,10 @@ const UnifiedSearchPanel = ({ callbacks }) => {
             {/* Find input */}
             <div className="fr-panel-find-row">
               <InputGroup
+                inputRef={findInputRef}
                 value={findInput}
                 onChange={handleFindChange}
                 placeholder={findPlaceholder}
-                autoFocus={false}
                 fill
                 rightElement={
                   <HistoryPopover
@@ -1113,7 +1121,7 @@ const UnifiedSearchPanel = ({ callbacks }) => {
                 <Button
                   minimal
                   small
-                  text="❔"
+                  text="？"
                   onClick={handleHelp}
                   className="fr-btn-icon"
                 />

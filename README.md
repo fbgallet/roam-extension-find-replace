@@ -140,7 +140,7 @@ In the input field, you can enter a /regex/ to match more precisely some pattern
 
 ## 🆕 Input history with favorites
 
-All text inputs (find, replace, prepend, append) remember the last 10 strings you used. Click the history icon (🕐) on the right side of any input to open a dropdown with your recent values — click any entry to instantly fill the input.
+All text inputs (find, replace, prepend, append) remember the last 10 strings you used. Click the history icon on the right side of any input to open a dropdown with your recent values — click any entry to instantly fill the input.
 
 You can **favorite** any entry (⭐) to pin it permanently at the top of the list, immune to the 10-item rotation. Unfavoriting moves the entry back into the regular history. Individual entries can also be removed with ✕. History is stored persistently across sessions via the extension storage.
 
@@ -148,7 +148,7 @@ You can **favorite** any entry (⭐) to pin it permanently at the top of the lis
 
 Regular Expressions (often abbreviated to regex) are a powerful system to express and match any form of character pattern you can imagine. The general idea is that a given regex allows to express several sequences of characters. For example, we have seen above that `/Words?|words/` allows to identify 'Word', 'Words' and 'words', but not 'word' (that we don't want to change). So with a single expression in the search field, you can find and modify different words in your graph simultaneously.
 
-The syntax of regular expressions is very strict. Understanding the science behind them is not indispensable (it is a pure mathematical formalism), but you have to learn the syntax and experiment with it before using it in Find & Replace (you can [for example, learn and test your formulas here](https://regexr.com/) or read [Learn regular expressions in about 55 minutes](https://qntm.org/re_en)), unless you restrict yourself to reproducing a few simple examples like the ones below. Be very cautious because their effects is not always easy to grasp and can have a dangerous impact on your data. Don't use regex if you don't know what you do.
+The syntax of regular expressions is very strict. Understanding the science behind them is not indispensable (it is a pure mathematical formalism), but you should learn the syntax and experiment with it before using it in Find & Replace (you can ask an LLM via Live AI to generate a regex for you and explainit, or [learn and test your formulas here](https://regexr.com/) or read [Learn regular expressions in about 55 minutes](https://qntm.org/re_en)), unless you restrict yourself to reproducing a few simple examples like the ones below. Be very cautious because their effects is not always easy to grasp and can have a dangerous impact on your data. Don't use regex if you don't know what you do.
 
 The most accessible feature is using the variable `$RegEx` as a placeholder for formating the replacement of matching strings:
 in Replace field, you can insert `$RegEx` in the replacing string. E.g., to bold all matching strings, enter: `**$RegEx**`
@@ -158,7 +158,10 @@ There is 4 possible formating of the main variable (pay attention to upper and l
 - `$REGEX` capitalizes all letters.
 - `$regex` set to lower case all letters.
 - `$Regex` capitalize first letter.
-  Capture groups $1 and $2 can also be (multi-) used, assuming that the RegEx formula includes groups in parenthesis.
+
+### Using capture groups
+
+Search regex support currently 2 capture groups, that mean patterns between parentheses that can be reproduced in the replace string with the placeholders `$1` and `$2`.
 
 You can click on `?` button in Find & Replace dialog box to see these examples:
 Regex have to be written between `/`slashes`/` with simple `\` backslash before special character to escape. Flag for global search (/g) is always set by default, you doesn't need to mention it.
@@ -186,9 +189,6 @@ Regex have to be written between `/`slashes`/` with simple `\` backslash before 
 
 ### Current limitations:
 
-- limits of auto-expand blocks feature:
-  Auto-expand blocks in Search in page or Find & Replace doesn't works always properly. The API command to expand blocks doesn't seem to be 100% reliable when there is an important amount of indented blocks to open. You may have to click on refresh button `↻` until the counter indicates that there are no more words in a folded blocks. Anyway it's only a matter of block display: all matching words will be replaced if you click on 'Replace all'.
-
 - limits of live highlight on page feature:
   Text in code blocks are not highlighted. Likewise, if your search for strings including markdown syntax, or if the matching string is hidden by some markdown syntax (like the link in an alias), it will not be highlighted. A counter indicate how many strings can't be highlighted. You can see them with in plain text with the `🔎︎` button. But in any case, the words will be correctly detected and replaced.
 
@@ -197,4 +197,10 @@ Regex have to be written between `/`slashes`/` with simple `\` backslash before 
 
 ---
 
-For any question or suggestion, DM me on Twitter and follow me to be informed of updates and new extensions: [@fbgallet](https://twitter.com/fbgallet) or Roam Slack.
+## If you want to support my work
+
+If you want to encourage me to develop further and enhance Find & Replace extension, you can [buy me a coffee ☕ here](https://buymeacoffee.com/fbgallet) or [sponsor me on Github](https://github.com/sponsors/fbgallet). Thanks in advance for your support! 🙏
+
+For any question or suggestion, DM me on **X/Twitter** and follow me to be informed of updates and new extensions : [@fbgallet](https://x.com/fbgallet), or on Bluesky: [@fbgallet.bsky.social](https://bsky.app/profile/fbgallet.bsky.social)
+
+Please report any issue [here](https://github.com/fbgallet/roam-extension-find-replace/issues).
