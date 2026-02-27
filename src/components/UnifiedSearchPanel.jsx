@@ -22,38 +22,25 @@ import {
 import "./UnifiedSearchPanel.css";
 
 const PANEL_WIDTH = 400;
-const PANEL_HEIGHT_APPROX = 200; // conservative estimate for bottom/center presets
 const MARGIN = 20;
 
-function getPositionFromPreset(preset) {
+function clampPosition(x, y, panelHeight) {
   const W = window.innerWidth;
   const H = window.innerHeight;
-  switch (preset) {
-    case "top left":
-      return { x: MARGIN, y: MARGIN + 40 };
-    case "top right":
-      return { x: W - PANEL_WIDTH - MARGIN, y: MARGIN + 40 };
-    case "bottom left":
-      return { x: MARGIN, y: H - PANEL_HEIGHT_APPROX - MARGIN };
-    case "bottom right":
-      return {
-        x: W - PANEL_WIDTH - MARGIN,
-        y: H - PANEL_HEIGHT_APPROX - MARGIN,
-      };
-    case "center":
-      return { x: (W - PANEL_WIDTH) / 2, y: (H - PANEL_HEIGHT_APPROX) / 2 };
-    case "center left":
-      return { x: MARGIN, y: (H - PANEL_HEIGHT_APPROX) / 2 };
-    case "center right":
-      return { x: W - PANEL_WIDTH - MARGIN, y: (H - PANEL_HEIGHT_APPROX) / 2 };
-    default:
-      return { x: W - PANEL_WIDTH - MARGIN, y: MARGIN + 40 };
-  }
+  const h = panelHeight || 400; // fallback if element not yet measured
+  return {
+    x: Math.min(Math.max(x, MARGIN), W - PANEL_WIDTH - MARGIN),
+    y: Math.min(Math.max(y, MARGIN), H - h - MARGIN),
+  };
 }
 
 function getInitialPosition() {
-  if (state.panelInitialXY) return state.panelInitialXY;
-  return getPositionFromPreset(state.panelPosition ?? "top right");
+  if (state.panelInitialXY) {
+    // Clamp with fallback height — real height clamping happens after mount via effect
+    return clampPosition(state.panelInitialXY.x, state.panelInitialXY.y);
+  }
+  // Default: top right
+  return { x: window.innerWidth - PANEL_WIDTH - MARGIN, y: MARGIN + 40 };
 }
 
 /**
@@ -126,6 +113,14 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   // ── Drag state ──
   const [position, setPosition] = useState(getInitialPosition);
   const dragOffset = useRef(null);
+  const panelRef = useRef(null);
+
+  // ── Clamp position after mount so the real panel height is known ──
+  useEffect(() => {
+    if (!panelRef.current) return;
+    const h = panelRef.current.offsetHeight;
+    setPosition((pos) => clampPosition(pos.x, pos.y, h));
+  }, []);
 
   // ── Debounce ref ──
   const debounceRef = useRef(null);
@@ -156,6 +151,12 @@ const UnifiedSearchPanel = ({ callbacks }) => {
       setIsOpen(snapshot.isOpen);
 
       if (justOpened) {
+        // Re-clamp position in case the window was resized since last open
+        setTimeout(() => {
+          const h = panelRef.current?.offsetHeight;
+          setPosition((pos) => clampPosition(pos.x, pos.y, h));
+        }, 0);
+
         // Only sync inputs when the panel transitions closed → open
         const newMode = snapshot.mode ?? "search";
         const requestedScope = snapshot.scope ?? "page";
@@ -275,6 +276,9 @@ const UnifiedSearchPanel = ({ callbacks }) => {
         dragOffset.current = null;
         window.removeEventListener("mousemove", onMouseMove);
         window.removeEventListener("mouseup", onMouseUp);
+        const h = panelRef.current?.offsetHeight;
+        lastPos = clampPosition(lastPos.x, lastPos.y, h);
+        setPosition(lastPos);
         state.panelInitialXY = lastPos;
         if (state.savePanelXY) state.savePanelXY(lastPos.x, lastPos.y);
       };
@@ -632,6 +636,7 @@ const UnifiedSearchPanel = ({ callbacks }) => {
 
   return (
     <div
+      ref={panelRef}
       className="fr-panel bp3-elevation-2"
       style={{ left: position.x, top: position.y }}
       onMouseDown={(e) => e.stopPropagation()}

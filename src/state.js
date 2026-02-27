@@ -48,8 +48,7 @@ const state = {
   // When true, getNodes() preserves expandedNodesUid instead of re-reading the page
   frozenNodes: false,
 
-  // Panel position preset (setting) and persistence helpers
-  panelPosition: "top right",
+  // Panel position persistence helpers
   panelInitialXY: null,           // {x, y} loaded from extensionAPI on startup
   savePanelXY: null,              // (x, y) => void — set by index.js after extensionAPI is ready
 };

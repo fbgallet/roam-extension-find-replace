@@ -157,27 +157,6 @@ const panelConfig = {
   tabTitle: "Find and replace",
   settings: [
     {
-      id: "panelPositionSetting",
-      name: "Search panel default position",
-      description:
-        "Initial position of the search/replace panel when no saved position exists (or saved position is off-screen):",
-      action: {
-        type: "select",
-        items: [
-          "top right",
-          "top left",
-          "bottom right",
-          "bottom left",
-          "center",
-          "center left",
-          "center right",
-        ],
-        onChange: (evt) => {
-          state.panelPosition = evt;
-        },
-      },
-    },
-    {
       id: "colorSetting",
       name: "Highlights color",
       description: "Color of the highlights of matching strings:",
@@ -241,7 +220,7 @@ const panelConfig = {
       id: "sortSetting",
       name: "Sort results",
       description:
-        "Sort global search results by page name or date (last edit time, most recent first):",
+        "Default sort order for search results (in the results panel and when copying/exporting): by page name or by date (last edit time, most recent first):",
       action: {
         type: "select",
         items: ["page", "date"],
@@ -377,7 +356,7 @@ export default {
       await extensionAPI.settings.set("expandSetting", true);
     state.includeCollapsed = extensionAPI.settings.get("expandSetting");
     if (extensionAPI.settings.get("embedSetting") == null)
-      await extensionAPI.settings.set("embedSetting", false);
+      await extensionAPI.settings.set("embedSetting", true);
     state.includeEmbeds = extensionAPI.settings.get("embedSetting");
     if (extensionAPI.settings.get("duplicateSetting") == null)
       await extensionAPI.settings.set("duplicateSetting", false);
@@ -398,10 +377,6 @@ export default {
       await extensionAPI.settings.set("truncateSetting", 150);
     state.codeBlockLimit = extensionAPI.settings.get("truncateSetting");
 
-    if (extensionAPI.settings.get("panelPositionSetting") == null)
-      await extensionAPI.settings.set("panelPositionSetting", "top right");
-    state.panelPosition = extensionAPI.settings.get("panelPositionSetting");
-
     // Initialize input history storage
     if (extensionAPI.settings.get("historyFind") == null)
       await extensionAPI.settings.set("historyFind", {
@@ -420,15 +395,12 @@ export default {
       });
 
     // Load last saved panel XY position (persisted across sessions)
+    // Clamping to viewport is handled by the component itself
     const savedXY = extensionAPI.settings.get("panelLastXY");
     if (
       savedXY &&
       typeof savedXY.x === "number" &&
-      typeof savedXY.y === "number" &&
-      savedXY.x >= 0 &&
-      savedXY.x < window.innerWidth - 50 &&
-      savedXY.y >= 0 &&
-      savedXY.y < window.innerHeight - 50
+      typeof savedXY.y === "number"
     ) {
       state.panelInitialXY = savedXY;
     }

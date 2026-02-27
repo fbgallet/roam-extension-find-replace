@@ -1,13 +1,15 @@
 # Find & Replace, Search box, block <=> page conversion, bulk operations
 
-**Way more than a simple Find & Replace: a versatile and powerful tool for search supporting regex and bulk operations (update following a given pattern, append, prepend, change format...).**
+**Way more than a simple Find & Replace: a versatile and powerful tool for search supporting regex and bulk operations (update content following a given pattern, append, prepend, change format, bulk page titles change...).**
 
 ![F R gif demo 2](https://user-images.githubusercontent.com/74436347/206271356-ef6d6085-8280-4b53-a622-bed4e733dcd9.gif)
 
-### 🆕 in v.10:
+### 🆕 in v.10 (February 2026):
 
-- Complete overhaul of the UI: unified draggable panel for almost all features
-- Input history and favorites
+- Complete overhaul of the UI: unified draggable panel with tabs for almost all features
+- Input (search or replace strings) history and favorites
+- Filter, sort and select matching blocks of search results or before applying Replace all
+- View search result as raw text or rendered blocks
 - Commands in context menu of multiselection, page reference and page title
 
 ### Available features:
@@ -32,11 +34,23 @@
 
 Press `Ctrl + S` to open a search box similar to the browsers' search box usually called with Ctrl+F: the search results are instantly highlighted in the current page and switching from one to the other automatically scrolls the display.
 
-But this search box is specially designed for Roam Research since it detects the words hidden in the collapsed blocks and expands them automatically, by checking `Auto-expand blocks` option. The search can also be extended to the whole workspace (including linked references and pages in the sidebar), or limited to a selection of blocks or only to page titles.
+But this search box is specially designed for Roam Research since it detects the words hidden in the collapsed blocks and expands them automatically, by checking `Auto-expand blocks` option.
 
-You can also specify a logic operator if you enter multiple words: by default, the whole string is searched, but you can search each word separated by a spaces with the `OR` operator (at least one word) or the `AND` operator (all words must be present in the block, in any order). AND+ is an experimental feature, it's like AND but it includes first level children blocks.
+You can control the scope of the search, it ca be:
 
-You can have a quick overview of the search results (including hidden blocks) by clicking `🔎︎` and copied in the clipboard as plain text (block references are resolved). Or you can copy the block references with '((📋))' and paste them anywhere in your graph.
+- extended to the whole workspace (including linked references and pages in the sidebar),
+- or limited to a selection of blocks (by selecting them before opening the panel or, when opened, by selecting them and clicking on 'Blocks' scope)
+- or only to page titles.
+
+You can also specify a logic operator if you enter multiple words:
+
+- by default (`full str.`), the whole string is searched,
+- but you can search each word separated by a spaces with the `OR` operator (at least one word),
+- or the `AND` operator (all words must be present in the block, in any order). `AND+` also includes first level children blocks.
+
+You can have a quick overview of the search results (including hidden blocks) by clicking `🔎︎` and copied in the clipboard as plain text (block references are resolved) and filter/sort the results (see below).
+
+You can copy the block references with '((📋))' and paste them anywhere in your graph.
 
 The search engine support regular expressions, so that any kind of pattern can be found. [See below for more details and examples](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#about-regex-support).
 
@@ -44,7 +58,7 @@ The search engine support regular expressions, so that any kind of pattern can b
 
 ![F R - Search in graph](https://user-images.githubusercontent.com/74436347/202821174-4167e496-bbc5-4d32-afaf-160701c260e2.png)
 
-Open the global search box with `Find & Replace: Whole graph search` in the command Palette (just enter 'wg'). It provides very quickly an overview of the results, even in large amounts, if you display them in plain text with `🔎︎`. As with search in page, you can copy the results to clipboard, as plain text or as block references.
+Set search scope to "Graph" (or run `Find & Replace: Whole graph search` in the command Palette (just enter 'wg')). Click on `🔎︎` to open a dialog displaying the matching blocks in plain text or rendered as editable Roam blocks.
 
 ### Results dialog
 
@@ -63,7 +77,7 @@ When you click `🔎︎`, matching blocks are displayed in a dedicated results d
 
 ### Find & Replace in selection, in page, in workspace
 
-Replace a given string with another at once or step by step, thanks to the 🆕 highlighting feature.
+Replace a given string with another at once or step by step.
 
 The range of application depends on two factors:
 
@@ -113,6 +127,8 @@ Options:
 
 Since it's a quite dangerous operation, it will be safer to check the impacted blocks first, with the `🔎︎` button.
 
+The Page => Block conversion command is also available in page and page reference context menu: the corresponding page title will instantly be copied in the page input.
+
 ## `Bulk change format of selected blocks` command:
 
 ![F R - format](https://user-images.githubusercontent.com/74436347/202827539-64b45e04-647c-44d1-9119-7aebe0f58042.png)
@@ -124,11 +140,15 @@ Apply to a selection of blocks (and only the visible ones), you can bulk change:
 - the view of the children (bullets, numbers, document),
 - the case of the text (all as Upper case, all as lower case, capitalize the first letter of the block or capitalize the first letter of each word or (🆕 new in v.3) capitalize each sentence - excluding page references, tags, attributs and block references, of course).
 
+This command is also available in multiselect context menu.
+
 ## `Prepend or append content to selected blocks` command:
 
 ![F R - append](https://user-images.githubusercontent.com/74436347/202827636-ec408223-091b-4352-b1b7-2d60d9b9feb9.png)
 
 Insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (append) of selected blocks. Only expanded blocks are concerned.
+
+This command is also available in multiselect context menu.
 
 ## 🆕 `Bulk change of [[page names]]`
 

@@ -81,7 +81,7 @@ const BlockResultsList = ({
   onReplaceSelected,
 }) => {
   const [filterText, setFilterText] = useState("");
-  const [sortBy, setSortBy] = useState("page"); // "page" | "count" | "date"
+  const [sortBy, setSortBy] = useState(() => state.matchesSortedBy ?? "page"); // "page" | "count" | "date"
   const [collapsedPages, setCollapsedPages] = useState(new Set());
   const [allCollapsed, setAllCollapsed] = useState(false);
   const [renderMode, setRenderMode] = useState("text"); // "text" | "roam"
