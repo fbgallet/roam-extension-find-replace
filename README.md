@@ -21,7 +21,7 @@
 - **[Find & Replace](https://github.com/fbgallet/roam-extension-find-replace#--find--replace) either local, in blocks selection, page, workspace, or global, [in the whole graph](https://github.com/fbgallet/roam-extension-find-replace#find--replace-in-whole-graph-warning-danger-zone), with complete support of regular expressions.**
 - **[Extract highlights or bold](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-extract-highlights-in-selection-or-page-command-in-the-command-palette-extract-only-the-highlighted-strings-and-add-an-alias-to-the-original-block) in selection or page, and other advanced extraction features.**
 - **[Block <=> Page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-block--page-conversion) conversion, replacing in bulk their references.**
-- **[Bulk formatting or cleaning](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-formatting-or-cleaning-of-selected-blocks-command) of selected blocks (header, alignment, view, case, clean syntax, remove styles, handle aliases, remove blank blocks)**
+- **[Bulk formatting or cleaning](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#bulk-formatting-or-cleaning-of-selected-blocks-command) of selected blocks (header, alignment, view, case, clean syntax, remove styles, handle aliases, remove blank blocks)**
 - **[Bulk append/prepend](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) strings, ie. at the beginning or/and at the end of a set of selected blocks.**
 - **🆕 [Bulk change of page names](https://github.com/fbgallet/roam-extension-find-replace?tab=readme-ov-file#-bulk-change-of-page-names) or simple pages search, supporting Regex.**
 - **[Full regular expressions support](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#full-regex-support)**
@@ -126,7 +126,7 @@ The Page => Block conversion command is also available in page and page referenc
 
 ## `Bulk formatting or cleaning of selected blocks` command:
 
-<img width="414" height="307" alt="image" src="https://github.com/user-attachments/assets/72f5237f-5a42-4e1e-a4c5-9b3ca125cb79" />
+<img width="408" height="390" alt="image" src="https://github.com/user-attachments/assets/0b279b7a-7a2f-44bf-b8cf-24a13cb5e8b1" />
 
 Apply to a set of blocks. Use the **source selector** at the top of the tab to choose which blocks to operate on:
 
