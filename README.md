@@ -4,10 +4,14 @@
 
 ![F R v10 demo](https://github.com/user-attachments/assets/d76b6eee-1362-468c-809d-b0cbd72d2895)
 
-### 🆕 in v.10 (February 2026):
+### 🆕 in v.10.1 (March 2026):
+
+### 🆕 in v.10 (March 2026):
 
 - Complete overhaul of the UI: unified draggable panel with tabs for almost all features
 - Input (search or replace strings) history and favorites
+- Bulk Format now includes cleaning options
+- Apply bulk operations to search results: Pre/Append and Format tabs now let you choose the block source — multiselect, current page/view, or search results
 - Filter, sort and select matching blocks of search results or before applying Replace all
 - View search result as raw text or rendered blocks
 - Commands in context menu of multiselection, page reference and page title
@@ -19,7 +23,7 @@
 - **[Find & Replace](https://github.com/fbgallet/roam-extension-find-replace#--find--replace) either local, in blocks selection, page, workspace, or global, [in the whole graph](https://github.com/fbgallet/roam-extension-find-replace#find--replace-in-whole-graph-warning-danger-zone), with complete support of regular expressions.**
 - **[Extract highlights or bold](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-extract-highlights-in-selection-or-page-command-in-the-command-palette-extract-only-the-highlighted-strings-and-add-an-alias-to-the-original-block) in selection or page, and other advanced extraction features.**
 - **[Block <=> Page](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-block--page-conversion) conversion, replacing in bulk their references.**
-- **[Bulk change format](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) of selected blocks (header, alignment, view, case)**
+- **[Bulk formatting or cleaning](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-formatting-or-cleaning-of-selected-blocks-command) of selected blocks (header, alignment, view, case, clean syntax, remove styles, handle aliases, remove blank blocks)**
 - **[Bulk append/prepend](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#-bulk-change-format-of-selected-blocks-command) strings, ie. at the beginning or/and at the end of a set of selected blocks.**
 - **🆕 [Bulk change of page names](https://github.com/fbgallet/roam-extension-find-replace?tab=readme-ov-file#-bulk-change-of-page-names) or simple pages search, supporting Regex.**
 - **[Full regular expressions support](https://github.com/fbgallet/roam-extension-find-replace/blob/main/README.md#full-regex-support)**
@@ -67,6 +71,7 @@ When you click `🔎︎`, matching blocks are displayed in a dedicated results d
 - **Collapse/Expand**: page groups can be collapsed individually or all at once with a single button (not available in date sort mode).
 - **Block selection**: each block has a checkbox; a footer "Select all / Deselect all" checkbox controls all visible blocks at once.
 - **Open in sidebar**: selected blocks can be opened all at once in the right sidebar with the footer button.
+- **Apply bulk operations**: footer buttons "Pre/Append N" and "Format N" open the corresponding tab with only the checked blocks pre-loaded as the target.
 - **Copy to clipboard**: the dialog's submit button copies all results as plain text (page names + resolved block content).
 
 ## - Find & Replace
@@ -121,26 +126,59 @@ Since it's a quite dangerous operation, it will be safer to check the impacted b
 
 The Page => Block conversion command is also available in page and page reference context menu: the corresponding page title will instantly be copied in the page input.
 
-## `Bulk change format of selected blocks` command:
+## `Bulk formatting or cleaning of selected blocks` command:
 
 <img width="414" height="307" alt="image" src="https://github.com/user-attachments/assets/72f5237f-5a42-4e1e-a4c5-9b3ca125cb79" />
 
-Apply to a selection of blocks (and only the visible ones), you can bulk change:
+Apply to a set of blocks. Use the **source selector** at the top of the tab to choose which blocks to operate on:
 
-- the header level (1, 2 or 3)
-- the alignment of the text (right, left, center, justify),
-- the view of the children (bullets, numbers, document),
-- the case of the text (all as Upper case, all as lower case, capitalize the first letter of the block or capitalize the first letter of each word or (🆕 new in v.3) capitalize each sentence - excluding page references, tags, attributs and block references, of course).
+- **Multiselect**: blocks drag-selected (blue highlight) or checked with Ctrl+M in the editor
+- **Main view**: all visible blocks on the current page or zoomed block (default)
+- **Search results**: blocks matching the last search — or a specific subset chosen in the 🔎 results dialog
 
-This command is also available in multiselect context menu.
+The panel is split into two rows:
+
+### Formatting
+
+- **Heading level**: H1, H2, H3 or Normal
+- **Alignment**: left, center, right, justify
+- **View** of children: bullets, numbered list, document
+- **Case**: UPPER, lower, Capitalize block, Capitalize Each Word, Capitalize each sentence (excluding page references, tags, attributes and block references)
+
+### Clean content
+
+- **Syntax**: remove specific Roam syntax from block content (keeping the inner text where applicable):
+  - _Remove page refs_ — strips `[[…]]` brackets and `#tag` / `#[[tag]]` prefixes, keeping the page name
+  - _Resolve block refs_ — replaces `((uid))` with the actual content of the referenced block
+  - _Remove buttons_ — removes `{{…}}` buttons individually (content between multiple buttons on the same line is preserved)
+  - _Remove bare URLs_ — removes `https://…` URLs that are not part of a markdown alias `[label](url)`
+  - _All at once_ — applies all four of the above in sequence
+
+- **Style**: remove inline style markers, keeping the inner text:
+  - `**bold**`, `__italic__`, `^^highlight^^`, `~~strikethrough~~`, or all at once
+
+- **Alias**: transform markdown alias syntax `[label](url)`:
+  - _Keep alias only_ — replaces `[label](url)` with just `label`
+  - _Keep URL only_ — replaces `[label](url)` with just the URL
+  - \*Alias\*_ — replaces `[label](url)` with `label_`
+
+- **Remove blank blocks** (checkbox): deletes blocks whose content is empty or whitespace-only, provided they have no children. Always applied last, so blocks emptied by the other cleaning operations are also caught.
+
+This command is also available in the multiselect context menu.
 
 ## `Prepend or append content to selected blocks` command:
 
 <img width="413" height="232" alt="image" src="https://github.com/user-attachments/assets/638988e3-2cc1-4425-80a9-86e080d7d897" />
 
-Insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (append) of selected blocks. Only expanded blocks are concerned.
+Insert some string (e.g. a tag) in bulk, at the beginning (prepend) or the end (append) of a set of blocks. Use the **source selector** at the top of the tab to choose which blocks to operate on:
 
-This command is also available in multiselect context menu.
+- **Multiselect**: blocks drag-selected (blue highlight) or checked with Ctrl+M in the editor
+- **Main view**: all visible blocks on the current page or zoomed block (default)
+- **Search results**: blocks matching the last search — or a specific subset chosen in the 🔎 results dialog
+
+Only expanded blocks are processed. This command is also available in multiselect context menu.
+
+**Tip**: run a search, open 🔎, uncheck the blocks you want to skip, and click "Pre/Append N" in the footer to apply only to your selection.
 
 ## 🆕 `Bulk change of [[page names]]`
 

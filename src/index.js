@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { normalizeMention, getPageNameByPageUid } from "./utils";
+import { normalizeMention, getPageNameByPageUid, getBlockAttributes } from "./utils";
 
 import { insertChangedBlocks } from "./copyResults";
 import state from "./state";
@@ -24,8 +24,11 @@ import {
   onKeydown,
   getSelection,
   getWorkspaceNodes,
+  getNodesInPage,
+  initializeNodesArrays,
   getSelectionFromMsContextMenuArgs,
 } from "./nodeTraversal";
+import Node from "./nodeModel";
 import {
   highlightAllMatches,
   expandPathBeforeHighlight,
@@ -95,7 +98,7 @@ const frpPageLabel = "Find & Replace: Bulk change of [[page names]]";
 const swgLabel = "Whole Graph search (wgs)";
 const ptobLabel = "Page ⇒ Block conversion (pbc)";
 const btopLabel = "Block ⇒ Page conversion (bpc)";
-const formLabel = "Find & Replace: Bulk change format of selected blocks (bcf)";
+const formLabel = "Find & Replace: Bulk formatting or cleaning of selected blocks (bcf)";
 const examplesOfRegex =
   "Regex have to be written between /slashes/ with simple \\backslash before special character to escape. /g flag for global search is set by default.<br><br>" +
   "<strong>In Find field:</strong><br>" +
@@ -455,7 +458,7 @@ export default {
         state.formatChange = false;
         openPanel({
           mode: "format",
-          label: "Bulk change format of selected blocks",
+          label: "Bulk formatting or cleaning of selected blocks",
         });
       },
     });
@@ -615,14 +618,14 @@ export default {
       },
     });
     window.roamAlphaAPI.ui.msContextMenu.addCommand({
-      label: "Find & Replace: Bulk change format of selection",
+      label: "Find & Replace: Bulk formatting or cleaning of selection",
       callback: (args) => {
         state.changesNb = 0;
         state.formatChange = false;
         getSelectionFromMsContextMenuArgs(args);
         openPanel({
           mode: "format",
-          label: "Bulk change format of selected blocks",
+          label: "Bulk formatting or cleaning of selected blocks",
         });
       },
     });
@@ -665,17 +668,19 @@ export default {
       // Page/workspace/selection search
       onActualizeHighlights: (findInput, ci, wo, expand, sl, scope) => {
         state.frozenNodes = scope === "selection";
+        state.workspace = scope === "workspace";
         actualizeHighlights(findInput, ci, wo, expand, sl);
       },
       onHighlightNext: (shift) => highlightNextMatch(shift),
       onRefresh: (findInput, ci, wo, expand, sl, scope) => {
         state.frozenNodes = scope === "selection";
+        state.workspace = scope === "workspace";
         actualizeHighlights(findInput, ci, wo, expand, sl);
       },
       onRemoveHighlights: () => removeHighlightedNodes(),
       onCopyRefs: (findInput, replaceInput, ci, sl, mode) =>
         copyMatchingUidsToClipboard(findInput, replaceInput, ci, sl, mode),
-      onDisplayResults: (findInput, replaceInput, ci, wo, sl) => {
+      onDisplayResults: (findInput, replaceInput, ci, wo, sl, onApplyToTab) => {
         const promptParams = normalizeInputRegex(
           findInput,
           replaceInput,
@@ -684,7 +689,7 @@ export default {
           sl,
         );
         if (promptParams)
-          displaySearchResustsInPlainText(promptParams, findInput);
+          displaySearchResustsInPlainText(promptParams, findInput, onApplyToTab);
       },
       onHelp: () => helpToast(),
       // Page find & replace
@@ -720,6 +725,7 @@ export default {
         sl,
         graphSubMode,
         replaceInput,
+        onApplyToTab,
       ) =>
         doGraphDisplayResults(
           findInput,
@@ -728,6 +734,7 @@ export default {
           sl,
           graphSubMode,
           replaceInput,
+          onApplyToTab,
         ),
       onGraphDisplayResultsSidebar: (findInput, ci, wo, sl, graphSubMode) =>
         doGraphDisplayResultsSidebar(findInput, ci, wo, sl, graphSubMode),
@@ -764,10 +771,90 @@ export default {
       },
       onClearFrozenNodes: () => {
         state.frozenNodes = false;
+        state.frozenSource = null;
+        // Clear stale search results so they don't affect the source selector next time
+        state.matchArray.length = 0;
+        state.matchingStringsArray.length = 0;
+        state.matchingTotal = 0;
+      },
+      // Lighter reset: only clears the frozen multiselect capture, without nuking search results
+      onClearMultiselectCapture: () => {
+        state.frozenNodes = false;
+        state.frozenSource = null;
+      },
+      // Source-aware selection: populates state.expandedNodesUid from multiselect, page, or search results
+      onCheckSelectionForSource: async (source) => {
+        if (
+          source === "multiselect" &&
+          state.frozenNodes &&
+          state.frozenSource === "multiselect" &&
+          state.expandedNodesUid.length > 0
+        ) {
+          // Nodes already captured from multiselect — reuse without re-reading DOM
+          // (Roam clears blue highlights as soon as the user clicks away, e.g. to a tab)
+          return state.expandedNodesUid.length;
+        }
+        state.frozenNodes = false;
+        state.frozenSource = null;
+        initializeNodesArrays();
+        if (source === "multiselect") {
+          const dragSelected = document.querySelectorAll(".block-highlight-blue");
+          const cmdSelected =
+            window.roamAlphaAPI.ui.individualMultiselect.getSelectedUids?.() ?? [];
+          const multiSelected =
+            window.roamAlphaAPI.ui.multiselect.getSelected?.() ?? [];
+          if (
+            dragSelected.length === 0 &&
+            cmdSelected.length === 0 &&
+            multiSelected.length === 0
+          ) {
+            return 0;
+          }
+          getSelection();
+          // Freeze so subsequent calls (e.g. tab switch) reuse this capture without re-reading DOM
+          state.frozenNodes = true;
+          state.frozenSource = "multiselect";
+          return state.expandedNodesUid.length;
+        }
+        if (source === "page") {
+          await getNodesInPage();
+          state.frozenNodes = true;
+          state.frozenSource = "page";
+          return state.expandedNodesUid.length;
+        }
+        if (source === "searchResults") {
+          if (state.frozenSearchSubset !== null) {
+            const uids = state.frozenSearchSubset;
+            state.frozenSearchSubset = null;
+            state.expandedNodesUid = uids.map(
+              (uid) => new Node(uid, getBlockAttributes(uid)),
+            );
+          } else {
+            const seen = new Set();
+            state.expandedNodesUid = [];
+            for (const match of state.matchArray) {
+              if (!seen.has(match.uid)) {
+                seen.add(match.uid);
+                state.expandedNodesUid.push(
+                  new Node(match.uid, getBlockAttributes(match.uid)),
+                );
+              }
+            }
+          }
+          state.frozenNodes = true;
+          state.frozenSource = "searchResults";
+          return state.expandedNodesUid.length;
+        }
+        return 0;
+      },
+      // Called from 🔎 dialog footer — pins a subset of search results as source for Pre/Append & Format tabs
+      onApplySearchSubset: (uids, mode) => {
+        state.frozenSearchSubset = uids;
+        if (mode) openPanel({ mode });
       },
       onAppendPrepend: (prefix, suffix) => doAppendPrepend(prefix, suffix),
-      onFormatChange: (h, a, v, caseChange) =>
-        doFormatChange(h, a, v, caseChange),
+      onFormatChange: (h, a, v, caseChange, cleanMode, styleMode, aliasMode, taskMode, removeBlank) =>
+        doFormatChange(h, a, v, caseChange, cleanMode, styleMode, aliasMode, taskMode, removeBlank),
       // Page⇔Block conversion tab
       onPageToBlock: (findInput, replaceInput, moveContent) =>
         doGraphPageToBlock(findInput, replaceInput, moveContent),
@@ -778,12 +865,14 @@ export default {
         replaceInput,
         direction,
         moveContent,
+        onApplyToTab,
       ) =>
         doPageBlockDisplayResults(
           findInput,
           replaceInput,
           direction,
           moveContent,
+          onApplyToTab,
         ),
     };
 
@@ -816,7 +905,7 @@ export default {
       label: "Find & Replace: Prepend or append to selection",
     });
     window.roamAlphaAPI.ui.msContextMenu.removeCommand({
-      label: "Find & Replace: Bulk change format of selection",
+      label: "Find & Replace: Bulk formatting or cleaning of selection",
     });
     window.roamAlphaAPI.ui.pageContextMenu.removeCommand({
       label: "Find & Replace: Page ⇒ Block conversion",

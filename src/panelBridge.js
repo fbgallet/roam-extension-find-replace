@@ -58,6 +58,7 @@ export function openPanel(config) {
 
 export function closePanel() {
   panelState.isOpen = false;
+  panelState.matchLabel = "";
   notify();
 }
 

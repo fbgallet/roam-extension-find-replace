@@ -47,6 +47,11 @@ const state = {
 
   // When true, getNodes() preserves expandedNodesUid instead of re-reading the page
   frozenNodes: false,
+  // Source that was used when freezing nodes: "multiselect" | "page" | "searchResults" | null
+  frozenSource: null,
+
+  // Array<uid> | null — subset of search results pinned from 🔎 dialog for next operation
+  frozenSearchSubset: null,
 
   // Panel position persistence helpers
   panelInitialXY: null,           // {x, y} loaded from extensionAPI on startup

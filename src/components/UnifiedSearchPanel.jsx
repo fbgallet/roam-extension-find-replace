@@ -90,6 +90,11 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   const [selectionCount, setSelectionCount] = useState(null);
   // Warning shown when user clicks "Blocks" scope but no selection found
   const [selectionWarning, setSelectionWarning] = useState(false);
+  // Source of blocks for Pre/Append and Format tabs
+  // "multiselect" | "page" | "searchResults"
+  const [blockSource, setBlockSource] = useState("multiselect");
+  // Whether the current count came from a pinned subset (state.frozenSearchSubset was set)
+  const [isSearchSubset, setIsSearchSubset] = useState(false);
 
   // ── Input state ──
   const [findInput, setFindInput] = useState("");
@@ -109,6 +114,11 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   const [fmtAlignment, setFmtAlignment] = useState("noChange");
   const [fmtView, setFmtView] = useState("noChange");
   const [fmtCaseChange, setFmtCaseChange] = useState("noChange");
+  const [fmtCleanMode, setFmtCleanMode] = useState("noChange");
+  const [fmtStyleMode, setFmtStyleMode] = useState("noChange");
+  const [fmtAliasMode, setFmtAliasMode] = useState("noChange");
+  const [fmtTaskMode, setFmtTaskMode] = useState("noChange");
+  const [fmtRemoveBlank, setFmtRemoveBlank] = useState(false);
 
   // ── Drag state ──
   const [position, setPosition] = useState(getInitialPosition);
@@ -175,17 +185,18 @@ const UnifiedSearchPanel = ({ callbacks }) => {
         setSuffixInput("");
         // Always check selection on open; auto-activate "selection" scope if blocks found
         setSelectionCount(null);
-        setTimeout(() => {
-          const count = checkSelectionRef.current?.();
-          // For search/findReplace tabs, auto-switch to selection scope if blocks selected
-          if (
-            count > 0 &&
-            (newMode === "search" || newMode === "findReplace")
-          ) {
-            setScope("selection");
-          } else {
-            setScope(requestedScope);
+        setTimeout(async () => {
+          // Only probe multiselect for search/findReplace tabs (to auto-switch to selection scope).
+          // For other tabs (format, appendPrepend…) the tab-open effect handles source detection independently.
+          if (newMode === "search" || newMode === "findReplace") {
+            const result = checkSelectionRef.current?.();
+            const count = result instanceof Promise ? await result : result;
+            if (count > 0) {
+              setScope("selection");
+              return;
+            }
           }
+          setScope(requestedScope);
         }, 0);
       }
 
@@ -196,29 +207,63 @@ const UnifiedSearchPanel = ({ callbacks }) => {
   }, []);
 
   // ── Selection check: used by both Pre/Append tab and "Blocks" scope ──
-  const checkSelection = useCallback(() => {
-    const count = callbacks.onCheckSelection();
-    setSelectionCount(count);
-    return count;
-  }, [callbacks]);
+  // sourceOverride allows callers to force a specific source; otherwise uses current blockSource
+  const checkSelection = useCallback(
+    (sourceOverride) => {
+      const src = sourceOverride ?? blockSource;
+      const result = callbacks.onCheckSelectionForSource
+        ? callbacks.onCheckSelectionForSource(src)
+        : Promise.resolve(callbacks.onCheckSelection());
+      Promise.resolve(result).then((count) => {
+        setSelectionCount(count);
+      });
+      return result;
+    },
+    [callbacks, blockSource],
+  );
 
   // Keep ref in sync so the subscribe callback (outside React render cycle) can call it
   checkSelectionRef.current = checkSelection;
 
   // Auto-check when switching to the Pre/Append or Format tab
   useEffect(() => {
-    if (isOpen && (mode === "appendPrepend" || mode === "format")) {
-      setSelectionCount(null);
-      checkSelection();
+    if (!isOpen || (mode !== "appendPrepend" && mode !== "format")) return;
+    setSelectionCount(null);
+    setIsSearchSubset(false);
+    if (state.frozenSearchSubset !== null) {
+      // Pinned search subset takes priority
+      setIsSearchSubset(true);
+      setBlockSource("searchResults");
+      checkSelection("searchResults");
+    } else if (scope === "selection") {
+      // User was in Blocks scope — carry over multiselect directly
+      setBlockSource("multiselect");
+      checkSelection("multiselect");
+    } else {
+      // Probe multiselect first; fall back to page if nothing selected.
+      // Use setTimeout to let React finish rendering before querying the DOM/API.
+      setTimeout(async () => {
+        const count = await callbacks.onCheckSelectionForSource("multiselect");
+        if (count > 0) {
+          setBlockSource("multiselect");
+          setSelectionCount(count);
+        } else {
+          // No multiselect — default to page and count its blocks
+          setBlockSource("page");
+          const pageCount = await callbacks.onCheckSelectionForSource("page");
+          setSelectionCount(pageCount);
+        }
+      }, 0);
     }
-  }, [mode, isOpen]);
+  }, [mode, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When user manually switches to "selection" scope, re-check
+  // When scope is set to "selection" (e.g. auto-detected on open), populate count
+  // Note: manual Blocks button clicks are handled in handleScopeChange (async)
   useEffect(() => {
     if (isOpen && scope === "selection") {
-      checkSelection();
+      checkSelection("multiselect");
     }
-  }, [scope, isOpen]);
+  }, [scope, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Keyboard arrow listener (page/workspace scope, search/findReplace tabs only) ──
   useEffect(() => {
@@ -398,7 +443,8 @@ const UnifiedSearchPanel = ({ callbacks }) => {
 
   const handleDisplayResults = () => {
     addToHistory(callbacks.extensionAPI, HISTORY_FIND, findInput);
-    if (mode === "findReplace") addToHistory(callbacks.extensionAPI, HISTORY_REPLACE, replaceInput);
+    if (mode === "findReplace")
+      addToHistory(callbacks.extensionAPI, HISTORY_REPLACE, replaceInput);
     if (scope === "graph") {
       callbacks.onGraphDisplayResults(
         findInput,
@@ -407,6 +453,7 @@ const UnifiedSearchPanel = ({ callbacks }) => {
         searchLogic,
         graphSubMode,
         mode === "findReplace" ? replaceInput : undefined,
+        callbacks.onApplySearchSubset,
       );
     } else if (scope === "pageTitles") {
       callbacks.onPageTitlesDisplayResults(findInput, replaceInput);
@@ -417,6 +464,7 @@ const UnifiedSearchPanel = ({ callbacks }) => {
         caseInsensitive,
         wordOnly,
         searchLogic,
+        callbacks.onApplySearchSubset,
       );
     }
   };
@@ -481,8 +529,42 @@ const UnifiedSearchPanel = ({ callbacks }) => {
     handleClose();
   };
 
+  // Re-check count when user manually switches source in Pre/Append or Format tabs
+  const handleSourceChange = useCallback(
+    (src) => {
+      setIsSearchSubset(false);
+      if (src !== "multiselect") {
+        // Leaving multiselect — drop frozen capture
+        callbacks.onClearMultiselectCapture?.();
+      }
+      // When switching TO multiselect, keep any existing frozen capture intact so the
+      // already-captured selection (from tab-open) is reused immediately without a DOM re-read.
+      setBlockSource(src);
+      setSelectionCount(null);
+      checkSelection(src);
+    },
+    [callbacks, checkSelection],
+  );
+
+  // ── Large-scope confirmation ──
+  // Require a second "Confirm?" click when operating on many blocks from search results
+  const LARGE_SCOPE_THRESHOLD = 20;
+  const isLargeScope =
+    blockSource === "searchResults" && selectionCount > LARGE_SCOPE_THRESHOLD;
+  const [applyPending, setApplyPending] = useState(false);
+
+  // Cancel pending confirmation when source, count, or tab changes
+  useEffect(() => {
+    setApplyPending(false);
+  }, [blockSource, selectionCount, mode]);
+
   const handleAppendPrepend = () => {
     if (!selectionCount) return;
+    if (isLargeScope && !applyPending) {
+      setApplyPending(true);
+      return;
+    }
+    setApplyPending(false);
     addToHistory(callbacks.extensionAPI, HISTORY_PREFIX_SUFFIX, prefixInput);
     addToHistory(callbacks.extensionAPI, HISTORY_PREFIX_SUFFIX, suffixInput);
     callbacks.onAppendPrepend(prefixInput, suffixInput);
@@ -491,12 +573,32 @@ const UnifiedSearchPanel = ({ callbacks }) => {
 
   const handleFormatApply = () => {
     if (!selectionCount) return;
-    callbacks.onFormatChange(fmtHeading, fmtAlignment, fmtView, fmtCaseChange);
+    if (isLargeScope && !applyPending) {
+      setApplyPending(true);
+      return;
+    }
+    setApplyPending(false);
+    callbacks.onFormatChange(
+      fmtHeading,
+      fmtAlignment,
+      fmtView,
+      fmtCaseChange,
+      fmtCleanMode,
+      fmtStyleMode,
+      fmtAliasMode,
+      fmtTaskMode,
+      fmtRemoveBlank,
+    );
     // Reset selects but keep panel open so user can apply more changes
     setFmtHeading("noChange");
     setFmtAlignment("noChange");
     setFmtView("noChange");
     setFmtCaseChange("noChange");
+    setFmtCleanMode("noChange");
+    setFmtStyleMode("noChange");
+    setFmtAliasMode("noChange");
+    setFmtTaskMode("noChange");
+    setFmtRemoveBlank(false);
   };
 
   const handlePageBlockConvert = () => {
@@ -528,16 +630,17 @@ const UnifiedSearchPanel = ({ callbacks }) => {
         scope === "workspace",
       );
     } else {
-      // appendPrepend / format / pageBlockConversion: clear frozen selection
+      // appendPrepend / format / pageBlockConversion: clear frozen selection and any lingering highlights
       callbacks.onClearFrozenNodes?.();
+      callbacks.onRemoveHighlights?.();
     }
     closePanel();
   };
 
-  const handleScopeChange = (newScope) => {
+  const handleScopeChange = async (newScope) => {
     setSelectionWarning(false);
-    setScope(newScope);
     if (newScope === "workspace" || newScope === "page") {
+      setScope(newScope);
       callbacks.onActualizeHighlights(
         findInput,
         caseInsensitive,
@@ -547,9 +650,13 @@ const UnifiedSearchPanel = ({ callbacks }) => {
         newScope,
       );
     } else if (newScope === "selection") {
-      // checkSelection will re-populate nodes; re-highlight immediately after
-      const count = checkSelection();
+      setSelectionCount(null);
+      // "Click again" while already in selection scope = force a fresh DOM read (new selection)
+      if (scope === "selection") callbacks.onClearMultiselectCapture?.();
+      const result = checkSelection("multiselect");
+      const count = result instanceof Promise ? await result : result;
       if (count > 0) {
+        setScope("selection");
         callbacks.onActualizeHighlights(
           findInput,
           caseInsensitive,
@@ -563,6 +670,8 @@ const UnifiedSearchPanel = ({ callbacks }) => {
         setSelectionWarning(true);
         setScope("page");
       }
+    } else {
+      setScope(newScope);
     }
   };
 
@@ -590,6 +699,25 @@ const UnifiedSearchPanel = ({ callbacks }) => {
     pageBlockConversion: "Page ⟺ Block conversion",
   };
   const panelTitle = matchLabel || tabTitles[mode] || "Find & Replace";
+
+  // ── Block-source status message for Pre/Append & Format tabs ──
+  const hasSearchResults = state.matchArray.length > 0;
+  const blockSourceStatusMsg =
+    selectionCount === null
+      ? "Checking…"
+      : selectionCount > 0
+        ? blockSource === "searchResults"
+          ? isSearchSubset
+            ? `✓ ${selectionCount} block${selectionCount > 1 ? "s" : ""} from selected results`
+            : `✓ ${selectionCount} block${selectionCount > 1 ? "s" : ""} from search results`
+          : blockSource === "page"
+            ? `✓ ${selectionCount} block${selectionCount > 1 ? "s" : ""} on this page/view`
+            : `✓ ${selectionCount} block${selectionCount > 1 ? "s" : ""} selected`
+        : blockSource === "multiselect"
+          ? "⚠ No blocks selected — select blocks then refresh"
+          : blockSource === "page"
+            ? "⚠ No blocks found on current page"
+            : "⚠ No search results — run a search first";
 
   // Search logic options
   const logicOptions = [
@@ -643,9 +771,7 @@ const UnifiedSearchPanel = ({ callbacks }) => {
     >
       {/* Header / drag handle */}
       <div className="fr-panel-header" onMouseDown={onHeaderMouseDown}>
-        <span className="fr-panel-header-label">
-          {panelTitle}
-        </span>
+        <span className="fr-panel-header-label">{panelTitle}</span>
         <Tooltip content="Close (Esc)" minimal>
           <Button
             minimal
@@ -674,27 +800,50 @@ const UnifiedSearchPanel = ({ callbacks }) => {
       {/* ── Append/Prepend tab ── */}
       {isAppendPrependTab && (
         <div className="fr-panel-body">
-          {/* Selection status row */}
+          {/* Source selector */}
+          <div
+            className="fr-panel-scope"
+            style={{ marginBottom: 6, paddingTop: 0 }}
+          >
+            <ButtonGroup small>
+              <Button
+                small
+                active={blockSource === "multiselect"}
+                text="Multiselect"
+                onClick={() => handleSourceChange("multiselect")}
+              />
+              <Button
+                small
+                active={blockSource === "page"}
+                text="Main view"
+                onClick={() => handleSourceChange("page")}
+              />
+              <Button
+                small
+                active={blockSource === "searchResults"}
+                text="Search results"
+                disabled={!hasSearchResults}
+                onClick={() => handleSourceChange("searchResults")}
+              />
+            </ButtonGroup>
+          </div>
+          {/* Status row */}
           <div
             className={selectionCount ? "fr-panel-info" : "fr-panel-warning"}
             style={{ display: "flex", alignItems: "center", gap: 6 }}
           >
-            <span style={{ flex: 1 }}>
-              {selectionCount === null
-                ? "Checking selection…"
-                : selectionCount > 0
-                  ? `✓ ${selectionCount} block${selectionCount > 1 ? "s" : ""} selected`
-                  : "⚠ No blocks selected — select blocks now, then refresh"}
-            </span>
-            <Tooltip content="Re-check selection" minimal>
-              <Button
-                minimal
-                small
-                icon="refresh"
-                onClick={checkSelection}
-                className="fr-btn-icon"
-              />
-            </Tooltip>
+            <span style={{ flex: 1 }}>{blockSourceStatusMsg}</span>
+            {blockSource === "multiselect" && (
+              <Tooltip content="Re-check selection" minimal>
+                <Button
+                  minimal
+                  small
+                  icon="refresh"
+                  onClick={() => { callbacks.onClearMultiselectCapture?.(); checkSelection("multiselect"); }}
+                  className="fr-btn-icon"
+                />
+              </Tooltip>
+            )}
           </div>
           <div className="fr-panel-find-row">
             <InputGroup
@@ -727,14 +876,30 @@ const UnifiedSearchPanel = ({ callbacks }) => {
               }
             />
           </div>
+          {isLargeScope && (
+            <div className="fr-panel-danger" style={{ marginTop: 6 }}>
+              ⚠ {selectionCount} blocks from search results — large scope, bulk
+              change may be irreversible.
+            </div>
+          )}
           <div className="fr-panel-buttons">
             <Button
               small
-              intent="primary"
-              text="Apply"
+              intent={applyPending ? "danger" : "primary"}
+              text={
+                applyPending ? `⚠ Confirm ${selectionCount} blocks?` : "Apply"
+              }
               onClick={handleAppendPrepend}
               disabled={prefixInput === "" && suffixInput === ""}
             />
+            {applyPending && (
+              <Button
+                small
+                minimal
+                text="Cancel"
+                onClick={() => setApplyPending(false)}
+              />
+            )}
           </div>
         </div>
       )}
@@ -742,27 +907,50 @@ const UnifiedSearchPanel = ({ callbacks }) => {
       {/* ── Format tab ── */}
       {isFormatTab && (
         <div className="fr-panel-body">
-          {/* Selection status row */}
+          {/* Source selector */}
+          <div
+            className="fr-panel-scope"
+            style={{ marginBottom: 6, paddingTop: 0 }}
+          >
+            <ButtonGroup small>
+              <Button
+                small
+                active={blockSource === "multiselect"}
+                text="Multiselect"
+                onClick={() => handleSourceChange("multiselect")}
+              />
+              <Button
+                small
+                active={blockSource === "page"}
+                text="Main view"
+                onClick={() => handleSourceChange("page")}
+              />
+              <Button
+                small
+                active={blockSource === "searchResults"}
+                text="Search results"
+                disabled={!hasSearchResults}
+                onClick={() => handleSourceChange("searchResults")}
+              />
+            </ButtonGroup>
+          </div>
+          {/* Status row */}
           <div
             className={selectionCount ? "fr-panel-info" : "fr-panel-warning"}
             style={{ display: "flex", alignItems: "center", gap: 6 }}
           >
-            <span style={{ flex: 1 }}>
-              {selectionCount === null
-                ? "Checking selection…"
-                : selectionCount > 0
-                  ? `✓ ${selectionCount} block${selectionCount > 1 ? "s" : ""} selected`
-                  : "⚠ No blocks selected — select blocks now, then refresh"}
-            </span>
-            <Tooltip content="Re-check selection" minimal>
-              <Button
-                minimal
-                small
-                icon="refresh"
-                onClick={checkSelection}
-                className="fr-btn-icon"
-              />
-            </Tooltip>
+            <span style={{ flex: 1 }}>{blockSourceStatusMsg}</span>
+            {blockSource === "multiselect" && (
+              <Tooltip content="Re-check selection" minimal>
+                <Button
+                  minimal
+                  small
+                  icon="refresh"
+                  onClick={() => { callbacks.onClearMultiselectCapture?.(); checkSelection("multiselect"); }}
+                  className="fr-btn-icon"
+                />
+              </Tooltip>
+            )}
           </div>
           <div style={{ marginTop: 8 }}>
             <FormatChangeBody
@@ -774,22 +962,53 @@ const UnifiedSearchPanel = ({ callbacks }) => {
               setView={setFmtView}
               caseChange={fmtCaseChange}
               setCaseChange={setFmtCaseChange}
+              cleanMode={fmtCleanMode}
+              setCleanMode={setFmtCleanMode}
+              styleMode={fmtStyleMode}
+              setStyleMode={setFmtStyleMode}
+              aliasMode={fmtAliasMode}
+              setAliasMode={setFmtAliasMode}
+              taskMode={fmtTaskMode}
+              setTaskMode={setFmtTaskMode}
+              removeBlank={fmtRemoveBlank}
+              setRemoveBlank={setFmtRemoveBlank}
             />
           </div>
+          {isLargeScope && (
+            <div className="fr-panel-danger" style={{ marginTop: 6 }}>
+              ⚠ {selectionCount} blocks from search results — large scope, bulk
+              change may be irreversible.
+            </div>
+          )}
           <div className="fr-panel-buttons">
             <Button
               small
-              intent="primary"
-              text="Apply"
+              intent={applyPending ? "danger" : "primary"}
+              text={
+                applyPending ? `⚠ Confirm ${selectionCount} blocks?` : "Apply"
+              }
               onClick={handleFormatApply}
               disabled={
                 !selectionCount ||
                 (fmtHeading === "noChange" &&
                   fmtAlignment === "noChange" &&
                   fmtView === "noChange" &&
-                  fmtCaseChange === "noChange")
+                  fmtCaseChange === "noChange" &&
+                  fmtCleanMode === "noChange" &&
+                  fmtStyleMode === "noChange" &&
+                  fmtAliasMode === "noChange" &&
+                  fmtTaskMode === "noChange" &&
+                  !fmtRemoveBlank)
               }
             />
+            {applyPending && (
+              <Button
+                small
+                minimal
+                text="Cancel"
+                onClick={() => setApplyPending(false)}
+              />
+            )}
           </div>
         </div>
       )}
@@ -853,6 +1072,7 @@ const UnifiedSearchPanel = ({ callbacks }) => {
                     replaceInput,
                     conversionDirection,
                     moveContent,
+                    callbacks.onApplySearchSubset,
                   )
                 }
                 className="fr-btn-icon"
@@ -877,8 +1097,12 @@ const UnifiedSearchPanel = ({ callbacks }) => {
               {[
                 {
                   value: "selection",
-                  label: selectionCount > 0 ? `Blocks (${selectionCount})` : "Blocks",
-                  tooltip: "Search within multiselected blocks (drag-select or Cmd+M). Click again to refresh the selection.",
+                  label:
+                    selectionCount > 0
+                      ? `Blocks (${selectionCount})`
+                      : "Blocks",
+                  tooltip:
+                    "Search within multiselected blocks (drag-select or Cmd+M). Click again to refresh the selection.",
                 },
                 {
                   value: "page",
@@ -898,7 +1122,8 @@ const UnifiedSearchPanel = ({ callbacks }) => {
                 {
                   value: "pageTitles",
                   label: "Page titles",
-                  tooltip: "Find and replace patterns in page titles across the graph",
+                  tooltip:
+                    "Find and replace patterns in page titles across the graph",
                 },
               ].map((s) => (
                 <Tooltip key={s.value} content={s.tooltip} minimal>
@@ -915,7 +1140,8 @@ const UnifiedSearchPanel = ({ callbacks }) => {
           {/* Warning when Blocks scope clicked but no selection found */}
           {selectionWarning && (
             <div className="fr-panel-warning" style={{ margin: "4px 10px 0" }}>
-              ⚠ No blocks selected — drag-select or use Cmd+M, then click Blocks again.
+              ⚠ No blocks selected — drag-select or use Cmd+M, then click Blocks
+              again.
             </div>
           )}
 
@@ -981,8 +1207,19 @@ const UnifiedSearchPanel = ({ callbacks }) => {
                     extensionAPI={callbacks.extensionAPI}
                     onSelect={(v) => {
                       setFindInput(v);
-                      if (scope !== "graph" && scope !== "pageTitles" && v.length > 1)
-                        callbacks.onActualizeHighlights(v, caseInsensitive, wordOnly, expandToHighlight, searchLogic, scope);
+                      if (
+                        scope !== "graph" &&
+                        scope !== "pageTitles" &&
+                        v.length > 1
+                      )
+                        callbacks.onActualizeHighlights(
+                          v,
+                          caseInsensitive,
+                          wordOnly,
+                          expandToHighlight,
+                          searchLogic,
+                          scope,
+                        );
                     }}
                   />
                 }

@@ -334,10 +334,7 @@ export const replaceOpened = async (
       }
       state.changesNb++;
     }
-    let push = true;
-    if (state.changesNbBackup > 0)
-      push = state.modifiedBlocksCopy.filter((b) => b.uid === uid).length == 0;
-    if (push)
+    if (!state.modifiedBlocksCopy.some((b) => b.uid === uid))
       state.modifiedBlocksCopy.push({
         uid: uid,
         content: blockContent,
@@ -345,6 +342,7 @@ export const replaceOpened = async (
         page: node.page,
       });
     await updateBlock(uid, replacedBlock, isOpened);
+    node.content = replacedBlock;
   } else if (reverse) {
     await replaceOpened(node, /.*/g, replace);
   }

@@ -98,6 +98,7 @@ export const getFullMatchArrayInPage = async (promptParameters) => {
 export const displaySearchResustsInPlainText = async (
   promptParameters,
   findInput,
+  onApplyToTab,
 ) => {
   state.changesNbBackup = state.changesNb;
   let matchArrayBackup = state.matchArray;
@@ -109,6 +110,8 @@ export const displaySearchResustsInPlainText = async (
       " blocks in this page or workspace containing matching strings",
     promptParameters,
     findInput,
+    undefined,
+    onApplyToTab,
   );
   state.changesNb = state.changesNbBackup;
   state.matchArray = matchArrayBackup;

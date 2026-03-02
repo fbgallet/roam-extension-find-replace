@@ -157,7 +157,7 @@ export const doPageTitlesReplace = async (findInput, replaceInput) => {
 /**
  * Page⇔Block tab — show preview of affected blocks before converting.
  */
-export const doPageBlockDisplayResults = async (findInput, replaceInput, direction, moveContent) => {
+export const doPageBlockDisplayResults = async (findInput, replaceInput, direction, moveContent, onApplyToTab) => {
   _initializeGlobalVar();
   if (direction === "blockToPage") {
     const normalizedFind = normalizeMention(findInput, "block");
@@ -173,6 +173,8 @@ export const doPageBlockDisplayResults = async (findInput, replaceInput, directi
         state.matchArray.length + " blocks referencing " + findInput,
         promptParameters,
         findInput,
+        undefined,
+        onApplyToTab,
       );
   } else {
     // pageToBlock: show blocks referencing the page
@@ -184,6 +186,8 @@ export const doPageBlockDisplayResults = async (findInput, replaceInput, directi
         state.matchArray.length + " blocks referencing " + findInput,
         [pageMentionsRegex, replaceInput],
         findInput,
+        undefined,
+        onApplyToTab,
       );
   }
 };
@@ -213,7 +217,7 @@ export const doGraphPageToBlock = async (findInput, replaceInput, moveContent) =
   warningPopupWholeGraph(findInput, replaceInput, "page to block", moveContent);
 };
 
-export const doGraphDisplayResults = async (findInput, caseInsensitive, wordOnly, searchLogic, graphSubMode, replaceInput) => {
+export const doGraphDisplayResults = async (findInput, caseInsensitive, wordOnly, searchLogic, graphSubMode, replaceInput, onApplyToTab) => {
   _initializeGlobalVar();
   const isPageNames = graphSubMode === "replace page names";
   const promptParameters = normalizeInputRegex(
@@ -233,6 +237,7 @@ export const doGraphDisplayResults = async (findInput, caseInsensitive, wordOnly
           promptParameters,
           findInput,
           replaceInput,
+          onApplyToTab,
         );
       }
     }
@@ -298,6 +303,7 @@ export const displayResultsInPlainText = (
   promptParameters,
   findInput,
   replaceInput,
+  onApplyToTab,
 ) => {
   let treeArray;
   const isMatchesOnly = state.extractMatchesOnly && isRegex(findInput);
@@ -335,6 +341,7 @@ export const displayResultsInPlainText = (
           selectedUids,
         );
       } : undefined}
+      onApplyToTab={onApplyToTab}
     />
   );
   state.dialogTitle = <h4>{dialogCaption}:</h4>;

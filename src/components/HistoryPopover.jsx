@@ -24,10 +24,13 @@ export default function HistoryPopover({ storageKey, extensionAPI, onSelect }) {
     setData(loadHistoryData(extensionAPI, storageKey));
   }, [extensionAPI, storageKey]);
 
-  const handleOpen = useCallback(() => {
-    refresh();
-    setIsOpen(true);
-  }, [refresh]);
+  const handleInteraction = useCallback(
+    (nextOpen) => {
+      if (nextOpen) refresh();
+      setIsOpen(nextOpen);
+    },
+    [refresh]
+  );
 
   const handleSelect = useCallback(
     (value) => {
@@ -141,9 +144,7 @@ export default function HistoryPopover({ storageKey, extensionAPI, onSelect }) {
       content={menuContent}
       placement="bottom-end"
       isOpen={isOpen}
-      onInteraction={(nextOpen) => {
-        if (!nextOpen) setIsOpen(false);
-      }}
+      onInteraction={handleInteraction}
       minimal
     >
       <Tooltip content="Recent values" minimal>
@@ -151,7 +152,6 @@ export default function HistoryPopover({ storageKey, extensionAPI, onSelect }) {
           icon="history"
           minimal
           small
-          onClick={handleOpen}
           className="fr-history-trigger-btn"
         />
       </Tooltip>

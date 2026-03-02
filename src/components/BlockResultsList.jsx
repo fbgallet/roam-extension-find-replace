@@ -79,6 +79,7 @@ const BlockResultsList = ({
   onHighlight,
   onHighlightAll,
   onReplaceSelected,
+  onApplyToTab,
 }) => {
   const [filterText, setFilterText] = useState("");
   const [sortBy, setSortBy] = useState(() => state.matchesSortedBy ?? "page"); // "page" | "count" | "date"
@@ -330,6 +331,19 @@ const BlockResultsList = ({
     [selectedBlocks, allVisibleUids]
   );
 
+  const [applyConfirmed, setApplyConfirmed] = useState(false);
+  const applyConfirmTimerRef = useRef(null);
+
+  const handleApplyToTab = useCallback(() => {
+    const uids = allVisibleUids.filter((u) => selectedBlocks?.has(u));
+    onApplyToTab(uids);
+    setApplyConfirmed(true);
+    clearTimeout(applyConfirmTimerRef.current);
+    applyConfirmTimerRef.current = setTimeout(() => setApplyConfirmed(false), 2000);
+  }, [onApplyToTab, allVisibleUids, selectedBlocks]);
+
+  useEffect(() => () => clearTimeout(applyConfirmTimerRef.current), []);
+
   return (
     <div className="block-list">
       {/* Toolbar — outside scroll area */}
@@ -543,6 +557,20 @@ const BlockResultsList = ({
             title="Replace only selected blocks"
           >
             Replace {selectedCount} selected
+          </button>
+        )}
+        {onApplyToTab && (
+          <button
+            className={`block-results-apply-btn${applyConfirmed ? " apply-confirmed" : ""}`}
+            disabled={selectedCount === 0}
+            onClick={handleApplyToTab}
+            title="Use selected blocks as source for Pre/Append and Format tabs"
+          >
+            {applyConfirmed ? (
+              <><Icon icon="tick" size={12} /> {selectedCount} pinned</>
+            ) : (
+              <>Use {selectedCount} as source</>
+            )}
           </button>
         )}
       </div>

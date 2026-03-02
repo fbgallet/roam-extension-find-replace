@@ -205,6 +205,34 @@ button.add-to-sidebar:hover {
   opacity: 0.35;
   cursor: default;
 }
+.block-results-apply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(15, 153, 96, 0.6);
+  background: rgba(15, 153, 96, 0.12);
+  color: #0d8f5a;
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.block-results-apply-btn:hover:not(:disabled) {
+  background: rgba(15, 153, 96, 0.25);
+  border-color: rgba(15, 153, 96, 0.9);
+  color: #0a7a4d;
+}
+.block-results-apply-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.block-results-apply-btn.apply-confirmed {
+  border-color: rgba(15, 153, 96, 0.9);
+  background: rgba(15, 153, 96, 0.25);
+  color: #0a7a4d;
+}
 
 .bp3-dialog .page-list input[type="checkbox"] {
   transform: translateY(1px);

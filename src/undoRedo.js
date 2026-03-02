@@ -76,6 +76,15 @@ export const undoLastBulkOperation = async function () {
       let uid = state.modifiedBlocksCopy[index].uid;
       let blockContent = state.modifiedBlocksCopy[index].content;
       let blockState = state.modifiedBlocksCopy[index].open;
+      if (state.modifiedBlocksCopy[index].deleted) {
+        // Block was deleted — recreate it at its original position with its original uid.
+        await window.roamAlphaAPI.createBlock({
+          location: { "parent-uid": state.modifiedBlocksCopy[index].parentUid, order: state.modifiedBlocksCopy[index].order },
+          block: { uid, string: blockContent, open: blockState },
+        });
+        state.modifiedBlocksCopy[index] = { uid, content: "", open: blockState, page: state.modifiedBlocksCopy[index].page, deleted: false, parentUid: state.modifiedBlocksCopy[index].parentUid, order: state.modifiedBlocksCopy[index].order };
+        continue;
+      }
       await updateBlock(uid, blockContent, blockState);
       let block = getBlockAttributes(uid);
       if (state.formatChange) {

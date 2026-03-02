@@ -1,4 +1,4 @@
-import { updateBlock, getBlockAttributes, normalizeInputRegex } from "./utils";
+import { updateBlock, getBlockAttributes, normalizeInputRegex, getBlockContentByUid } from "./utils";
 import { openPanel } from "./panelBridge";
 import state from "./state";
 
@@ -123,26 +123,243 @@ export const changeBlockFormat = async (node, headingLevel, alignment, view) => 
   });
 };
 
+/******************************************************************************************
+/*	Clean content
+/******************************************************************************************/
+
+function resolveBlockRefs(text) {
+  return text.replace(/\(\(([a-zA-Z0-9_-]{9})\)\)/g, (_match, uid) => {
+    const content = getBlockContentByUid(uid);
+    return content !== "" ? content : _match;
+  });
+}
+
+/******************************************************************************************
+/*	Style formatting removal
+/******************************************************************************************/
+
+// styleMode values: "bold" | "italic" | "highlight" | "strikethrough" | "allStyles"
+function applyStyleChange(text, styleMode) {
+  let result = text;
+  const all = styleMode === "allStyles";
+
+  // **bold** → bold
+  if (all || styleMode === "bold")
+    result = result.replace(/\*\*([^*]+)\*\*/g, "$1");
+
+  // __italic__ → italic
+  if (all || styleMode === "italic")
+    result = result.replace(/__([^_]+)__/g, "$1");
+
+  // ^^highlight^^ → highlight
+  if (all || styleMode === "highlight")
+    result = result.replace(/\^\^([^^]+)\^\^/g, "$1");
+
+  // ~~strikethrough~~ → strikethrough
+  if (all || styleMode === "strikethrough")
+    result = result.replace(/~~([^~]+)~~/g, "$1");
+
+  return result;
+}
+
+/******************************************************************************************
+/*	Markdown alias handling
+/******************************************************************************************/
+
+// aliasMode values: "keepAlias" | "keepUrl" | "aliasWithStar" | "removeUrls"
+function applyAliasChange(text, aliasMode) {
+  let result = text;
+  // Remove bare URLs (not part of a markdown link)
+  if (aliasMode === "removeUrls") {
+    return result.replace(/(?<!\])\(https?:\/\/\S+\)|(?<!\]\()https?:\/\/\S+/g, "").trim();
+  }
+  // Matches [label](url) — label may contain any char except ], url any non-whitespace non-)
+  return result.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label, url) => {
+    if (aliasMode === "keepAlias") return label;
+    if (aliasMode === "keepUrl") return url;
+    if (aliasMode === "aliasWithStar") return `${label}*`;
+    return _match;
+  });
+}
+
+/******************************************************************************************
+/*	Per-block callbacks
+/******************************************************************************************/
+
+export const styleBlockContent = async (node, styleMode) => {
+  const uid = node.uid;
+  const original = node.content;
+  const result = applyStyleChange(original, styleMode).trim();
+  if (result === original) return;
+  if (!state.modifiedBlocksCopy.some((b) => b.uid === uid))
+    state.modifiedBlocksCopy.push({ uid, content: original, open: node.open, page: node.page });
+  await updateBlock(uid, result, node.open);
+  node.content = result;
+  state.changesNb++;
+};
+
+export const aliasBlockContent = async (node, aliasMode) => {
+  const uid = node.uid;
+  const original = node.content;
+  const result = applyAliasChange(original, aliasMode).trim();
+  if (result === original) return;
+  if (!state.modifiedBlocksCopy.some((b) => b.uid === uid))
+    state.modifiedBlocksCopy.push({ uid, content: original, open: node.open, page: node.page });
+  await updateBlock(uid, result, node.open);
+  node.content = result;
+  state.changesNb++;
+};
+
+// cleanMode values: "pageRefs" | "blockRefs" | "buttons" | "all"
+function applyCleanContent(text, cleanMode) {
+  let result = text;
+  const all = cleanMode === "all";
+
+  // Resolve ((uid)) block references — replace with their content
+  if (all || cleanMode === "blockRefs") {
+    result = resolveBlockRefs(result);
+  }
+
+  // Remove buttons {{...}} — skip Roam components starting with {{[[
+  // non-greedy so each button is removed individually
+  if (all || cleanMode === "buttons") {
+    result = result.replace(/\{\{(?!\[\[)[^{}]*?\}\}/g, "");
+  }
+
+  // Remove page ref syntax [[ and ]] and standalone #tag / #[[tag]]
+  // Keep inner text for [[page]] and #[[page]]
+  if (all || cleanMode === "pageRefs") {
+    result = result.replace(/#\[\[([^\]]+)\]\]/g, "$1");
+    result = result.replace(/#([^\s#\[\]]+)/g, "$1");
+    result = result.replace(/\[\[([^\]]+)\]\]/g, "$1");
+  }
+
+  // Collapse extra whitespace left by removals, then trim
+  result = result.replace(/  +/g, " ").trim();
+
+  return result;
+}
+
+/******************************************************************************************
+/*	Task marker transformation
+/******************************************************************************************/
+
+// taskMode values: "parseRef" | "checkboxIcon" | "markdown" | "removeTask"
+// Handles both {{[[TODO]]}} and {{TODO}}, and same for DONE
+function applyTaskChange(text, taskMode) {
+  // Match {{[[TODO]]}}, {{[[DONE]]}}, {{TODO}}, {{DONE}}
+  return text.replace(/\{\{(?:\[\[)?(TODO|DONE)(?:\]\])?\}\}/g, (_match, status) => {
+    const isDone = status === "DONE";
+    if (taskMode === "parseRef") return isDone ? "{{DONE}}" : "{{TODO}}";
+    if (taskMode === "checkboxIcon") return isDone ? "☑" : "☐";
+    if (taskMode === "markdown") return isDone ? "[x]" : "[ ]";
+    if (taskMode === "removeTask") return "";
+    return _match;
+  });
+}
+
+export const taskBlockContent = async (node, taskMode) => {
+  const uid = node.uid;
+  const original = node.content;
+  const result = applyTaskChange(original, taskMode).trim();
+  if (result === original) return;
+  if (!state.modifiedBlocksCopy.some((b) => b.uid === uid))
+    state.modifiedBlocksCopy.push({ uid, content: original, open: node.open, page: node.page });
+  await updateBlock(uid, result, node.open);
+  node.content = result;
+  state.changesNb++;
+};
+
+export const cleanBlockContent = async (node, cleanMode) => {
+  const uid = node.uid;
+  const original = node.content;
+  const cleaned = applyCleanContent(original, cleanMode);
+  if (cleaned === original) return;
+  if (!state.modifiedBlocksCopy.some((b) => b.uid === uid))
+    state.modifiedBlocksCopy.push({ uid, content: original, open: node.open, page: node.page });
+  await updateBlock(uid, cleaned, node.open);
+  node.content = cleaned;
+  state.changesNb++;
+};
+
+export const deleteBlankChildlessBlock = async (node) => {
+  const uid = node.uid;
+  // node.content is kept current by every preceding operation (updated after each write).
+  if (node.content.trim() !== "") return;
+  const pullResult = window.roamAlphaAPI.pull(
+    "[:block/string :block/order {:block/children [:block/uid]} {:block/parents [:block/uid]}]",
+    [":block/uid", uid]
+  );
+  if (!pullResult) return; // block no longer exists
+  const children = pullResult[":block/children"];
+  if (children && children.length > 0) return;
+  // Capture parent uid and order so undo can recreate the block at the same position.
+  const parents = pullResult[":block/parents"];
+  const parentUid = parents && parents.length > 0 ? parents[parents.length - 1][":block/uid"] : node.page;
+  const order = pullResult[":block/order"] ?? 0;
+  if (!state.modifiedBlocksCopy.some((b) => b.uid === uid))
+    state.modifiedBlocksCopy.push({
+      uid,
+      content: node.content,
+      open: node.open,
+      page: node.page,
+      deleted: true,
+      parentUid,
+      order,
+    });
+  state.changesNb++;
+  await window.roamAlphaAPI.deleteBlock({ block: { uid } });
+};
+
 /**
  * Called by the panel's onFormatChange callback.
  * Applies heading/alignment/view/case changes to all selected nodes.
  */
-export const doFormatChange = async (h, a, v, caseChange) => {
+export const doFormatChange = async (h, a, v, caseChange, cleanMode, styleMode, aliasMode, taskMode, removeBlank) => {
   state.changesNb = 0;
+  state.formatChange = false;
+  // Clear once before all sub-operations so modifiedBlocksCopy accumulates the pre-run
+  // originals across every step — undo can then restore everything in one pass.
+  while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
+
+  // Build a label describing all active operations for the undo toast
+  const ops = [];
+  if (h !== "noChange" || a !== "noChange" || v !== "noChange") ops.push("format");
+  if (caseChange !== "noChange") ops.push("case");
+  if (cleanMode !== "noChange") ops.push("clean");
+  if (styleMode !== "noChange") ops.push("style");
+  if (aliasMode !== "noChange") ops.push("alias");
+  if (taskMode !== "noChange") ops.push("task");
+  if (removeBlank) ops.push("remove blank");
+  state.lastOperation = ops.length > 1 ? "Format: " + ops.join(", ") : (ops[0] ?? "Format");
+
   if (h != "noChange" || a != "noChange" || v != "noChange") {
-    state.lastOperation = "Change format";
     state.formatChange = true;
-    const promptParameters = [h, a, v];
-    while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
     await _selectedNodesProcessing(
       state.expandedNodesUid,
-      promptParameters,
+      [h, a, v],
       changeBlockFormat,
     );
+    state.formatChange = false;
   }
   if (caseChange != "noChange") {
-    state.lastOperation = "Change case";
-    await caseBulkChange(caseChange);
+    await caseBulkChange(caseChange, true);
+  }
+  if (cleanMode !== "noChange") {
+    await _selectedNodesProcessing(state.expandedNodesUid, [cleanMode], cleanBlockContent);
+  }
+  if (styleMode !== "noChange") {
+    await _selectedNodesProcessing(state.expandedNodesUid, [styleMode], styleBlockContent);
+  }
+  if (aliasMode !== "noChange") {
+    await _selectedNodesProcessing(state.expandedNodesUid, [aliasMode], aliasBlockContent);
+  }
+  if (taskMode !== "noChange") {
+    await _selectedNodesProcessing(state.expandedNodesUid, [taskMode], taskBlockContent);
+  }
+  // removeBlank runs last: other operations may have created blank blocks
+  if (removeBlank) {
+    await _selectedNodesProcessing(state.expandedNodesUid, [], deleteBlankChildlessBlock);
   }
   state.selectedBlocks = [];
   state.seletionBlue = false;
@@ -150,7 +367,7 @@ export const doFormatChange = async (h, a, v, caseChange) => {
   state.changesNbBackup = state.changesNb;
 };
 
-export const caseBulkChange = async (change) => {
+export const caseBulkChange = async (change, isPartOfMultiStep = false) => {
   let replace;
   let input = _referencesRegexStr;
   switch (change) {
@@ -171,7 +388,9 @@ export const caseBulkChange = async (change) => {
       break;
   }
 
-  while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
+  // When called standalone, own the backup; when part of doFormatChange, don't wipe it.
+  if (!isPartOfMultiStep)
+    while (state.modifiedBlocksCopy.length > 0) state.modifiedBlocksCopy.pop();
   let promptParameters = normalizeInputRegex(input, replace);
   promptParameters.push(true);
   if (change == "capitalizeS") promptParameters[0] = /.*/g;
@@ -181,5 +400,6 @@ export const caseBulkChange = async (change) => {
     promptParameters,
     _replaceOpened,
   );
-  state.changesNbBackup = state.changesNb;
+  if (!isPartOfMultiStep)
+    state.changesNbBackup = state.changesNb;
 };

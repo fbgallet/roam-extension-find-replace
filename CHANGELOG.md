@@ -1,4 +1,4 @@
-## v.10 (February 2026) Complete refactoring
+## v.10 (March 2026) Complete refactoring
 
 ### New features:
 
@@ -6,6 +6,8 @@
 - Filter, sort and select matching blocks of search results or before applying Replace all
 - View search result as raw text or rendered blocks
 - Commands in context menu of multiselection (for F&R or bulk operations), page reference and page title (for Page => Block conversion)
+- Bulk cleaning of multislected blocks (in Format tab)
+- Scope selector in Pre/Append and Format tabs: choose between multiselect, current page/view (default), or search results
 
 ### Updates
 
