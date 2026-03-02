@@ -4,8 +4,6 @@
 
 ![F R v10 demo](https://github.com/user-attachments/assets/d76b6eee-1362-468c-809d-b0cbd72d2895)
 
-### 🆕 in v.10.1 (March 2026):
-
 ### 🆕 in v.10 (March 2026):
 
 - Complete overhaul of the UI: unified draggable panel with tabs for almost all features
@@ -151,7 +149,6 @@ The panel is split into two rows:
   - _Remove page refs_ — strips `[[…]]` brackets and `#tag` / `#[[tag]]` prefixes, keeping the page name
   - _Resolve block refs_ — replaces `((uid))` with the actual content of the referenced block
   - _Remove buttons_ — removes `{{…}}` buttons individually (content between multiple buttons on the same line is preserved)
-  - _Remove bare URLs_ — removes `https://…` URLs that are not part of a markdown alias `[label](url)`
   - _All at once_ — applies all four of the above in sequence
 
 - **Style**: remove inline style markers, keeping the inner text:
@@ -160,7 +157,8 @@ The panel is split into two rows:
 - **Alias**: transform markdown alias syntax `[label](url)`:
   - _Keep alias only_ — replaces `[label](url)` with just `label`
   - _Keep URL only_ — replaces `[label](url)` with just the URL
-  - \*Alias\*_ — replaces `[label](url)` with `label_`
+  - _Alias with \*_ — replaces `url` with `[*](url)`
+  - _Remove bare URLs_ — removes `https://…` URLs that are not part of a markdown alias `[label](url)`
 
 - **Remove blank blocks** (checkbox): deletes blocks whose content is empty or whitespace-only, provided they have no children. Always applied last, so blocks emptied by the other cleaning operations are also caught.
 
